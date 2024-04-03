@@ -1,0 +1,56 @@
+==================================================================
+https://keybase.io/cvillela
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://lixo.org
+  * I am cvillela (https://keybase.io/cvillela) on keybase.
+  * I have a public key ASAr-oB0XnKMqnPRmVemZAF9M8TDyAvRi7qKFphjLm4whgo
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "01202bfa80745e728caa73d19957a664017d33c4c3c80bd18bba8a1698632e6e30860a",
+      "host": "keybase.io",
+      "kid": "01202bfa80745e728caa73d19957a664017d33c4c3c80bd18bba8a1698632e6e30860a",
+      "uid": "8d385f2d90fdfedf277300f3eea90d19",
+      "username": "cvillela"
+    },
+    "merkle_root": {
+      "ctime": 1712117123,
+      "hash": "6020c35e9facd81c16a64862ab36e47b4a30590b9b1b726fc309871956cfbbb2602a8da60b1c92ad51b718c9f6e57091b5dfb5a0e123150de7c07ccf3f43d8fd",
+      "hash_meta": "83e5f7f9d378dd3e18b81a2df3e70c92d50d3f3cf6ea29658016e2dc7a368d56",
+      "seqno": 25609148
+    },
+    "service": {
+      "entropy": "/hcObcZyD2szEGOo7nLRA9ct",
+      "hostname": "lixo.org",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 2
+  },
+  "client": {
+    "name": "keybase.io go client",
+    "version": "6.2.8"
+  },
+  "ctime": 1712117149,
+  "expire_in": 504576000,
+  "prev": "c440f3e8e889e310d4ef9416e0b5e0fd6c75af7b60f0f9cb4395d8f3078396f2",
+  "seqno": 223,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+hKRib2R5hqhkZXRhY2hlZMOpaGFzaF90eXBlCqNrZXnEIwEgK/qAdF5yjKpz0ZlXpmQBfTPEw8gL0Yu6ihaYYy5uMIYKp3BheWxvYWTES5cCzN/EIMRA8+joieMQ1O+UFuC14P1sda97YPD5y0OV2PMHg5byxCDJ+VwW3qwPxmJjbKftJmgUqiL2FbWvfy0YSkyyjUyaHQIBwqNzaWfEQKlhf0qqwedhx4BTes9+it5orTsu7gIPMMWYsWgfmREY5GSbXEefpodtUW445yPDzT6QXwAa2PEdmc/ovFUrFACoc2lnX3R5cGUgpGhhc2iCpHR5cGUIpXZhbHVlxCD7XzDyUA43npYulax/AJIOrflq4BID+yHikDfDkF0Q26N0YWfNAgKndmVyc2lvbgE=
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/cvillela
+
+==================================================================
