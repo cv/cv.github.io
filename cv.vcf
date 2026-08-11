@@ -1,6 +1,8 @@
 BEGIN:VCARD
+VERSION:3.0
+FN:Carlos Villela
 N:Villela;Carlos;;;
-EMAIL;INTERNET:cv@lixo.org
+EMAIL;TYPE=INTERNET:cv@lixo.org
 TITLE:Engineering Manager, Technical Lead, Software Developer
-URL:https://lixo.org
+URL:https://lixo.org/
 END:VCARD
