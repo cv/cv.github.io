@@ -731,12 +731,14 @@
 
     let cssWidth=1,cssHeight=1,worldPx=1,pixelRatio=1;
     function resize(){pixelRatio=Math.min(2,window.devicePixelRatio||1);cssWidth=scene.clientWidth;cssHeight=scene.clientHeight;const w=Math.round(cssWidth*pixelRatio),h=Math.round(cssHeight*pixelRatio);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h);}worldPx=Math.min(cssWidth/25,cssHeight/16);if(gl){gl.uniform2f(loc.scale,2*worldPx/cssWidth,2*worldPx/cssHeight);gl.uniform2f(loc.pan,0,-.08);}}
+    let staticBuffersUploaded=false;
     function drawArrays(p,c,lp,lc,dynamic=false){
-      const bp=dynamic?buffers.dynamicP:buffers.staticP,bc=dynamic?buffers.dynamicC:buffers.staticC,blp=dynamic?buffers.dynamicLP:buffers.staticLP,blc=dynamic?buffers.dynamicLC:buffers.staticLC;
-      gl.bindBuffer(gl.ARRAY_BUFFER,bp);gl.bufferData(gl.ARRAY_BUFFER,p,dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);gl.enableVertexAttribArray(loc.position);gl.vertexAttribPointer(loc.position,3,gl.FLOAT,false,0,0);
-      gl.bindBuffer(gl.ARRAY_BUFFER,bc);gl.bufferData(gl.ARRAY_BUFFER,c,dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);gl.enableVertexAttribArray(loc.color);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);gl.uniform1f(loc.depth,0);gl.drawArrays(gl.TRIANGLES,0,p.length/3);
-      gl.bindBuffer(gl.ARRAY_BUFFER,blp);gl.bufferData(gl.ARRAY_BUFFER,lp,dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);gl.vertexAttribPointer(loc.position,3,gl.FLOAT,false,0,0);
-      gl.bindBuffer(gl.ARRAY_BUFFER,blc);gl.bufferData(gl.ARRAY_BUFFER,lc,dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);gl.uniform1f(loc.depth,-.002);gl.drawArrays(gl.LINES,0,lp.length/3);
+      const bp=dynamic?buffers.dynamicP:buffers.staticP,bc=dynamic?buffers.dynamicC:buffers.staticC,blp=dynamic?buffers.dynamicLP:buffers.staticLP,blc=dynamic?buffers.dynamicLC:buffers.staticLC,upload=dynamic||!staticBuffersUploaded,usage=dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW;
+      gl.bindBuffer(gl.ARRAY_BUFFER,bp);if(upload)gl.bufferData(gl.ARRAY_BUFFER,p,usage);gl.enableVertexAttribArray(loc.position);gl.vertexAttribPointer(loc.position,3,gl.FLOAT,false,0,0);
+      gl.bindBuffer(gl.ARRAY_BUFFER,bc);if(upload)gl.bufferData(gl.ARRAY_BUFFER,c,usage);gl.enableVertexAttribArray(loc.color);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);gl.uniform1f(loc.depth,0);gl.drawArrays(gl.TRIANGLES,0,p.length/3);
+      gl.bindBuffer(gl.ARRAY_BUFFER,blp);if(upload)gl.bufferData(gl.ARRAY_BUFFER,lp,usage);gl.vertexAttribPointer(loc.position,3,gl.FLOAT,false,0,0);
+      gl.bindBuffer(gl.ARRAY_BUFFER,blc);if(upload)gl.bufferData(gl.ARRAY_BUFFER,lc,usage);gl.vertexAttribPointer(loc.color,3,gl.FLOAT,false,0,0);gl.uniform1f(loc.depth,-.002);gl.drawArrays(gl.LINES,0,lp.length/3);
+      if(!dynamic)staticBuffersUploaded=true;
     }
     function project(p){const isoX=p.x-p.z,isoY=(p.x+p.z)*.5-p.y*1.42;return {x:cssWidth/2+isoX*worldPx,y:cssHeight*.54+isoY*worldPx};}
     function bubbleText(p,anger){
