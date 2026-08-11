@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Cherry blossom</title>
+  <rect width="64" height="64" rx="14" fill="#63b5ed"/>
+  <g transform="translate(32 32)" fill="#e83e6f" stroke="#9f204b" stroke-width="1.5">
+    <ellipse cx="0" cy="-14" rx="8" ry="14"/>
+    <ellipse cx="0" cy="-14" rx="8" ry="14" transform="rotate(72)"/>
+    <ellipse cx="0" cy="-14" rx="8" ry="14" transform="rotate(144)"/>
+    <ellipse cx="0" cy="-14" rx="8" ry="14" transform="rotate(216)"/>
+    <ellipse cx="0" cy="-14" rx="8" ry="14" transform="rotate(288)"/>
+    <circle r="7" fill="#f4b214" stroke="#9f204b"/>
+  </g>
+</svg>
