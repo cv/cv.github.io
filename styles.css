@@ -5,6 +5,15 @@
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
  */
 
+/* Derived from Handlee v20; licensed under the SIL Open Font License in fonts/handlee/OFL.txt. */
+@font-face {
+  font-family: "Lixo Heading";
+  font-style: normal;
+  font-weight: 400;
+  src: url("fonts/handlee/lixo-heading.woff2") format("woff2");
+  unicode-range: U+20, U+27, U+2c, U+43, U+48-49, U+56, U+61, U+65, U+69, U+6c-6d, U+6f, U+72-73;
+}
+
 :root {
   --blue: #007bff;
   --indigo: #6610f2;
@@ -418,7 +427,7 @@ a:hover {
 
 h1,h2,h3,h4,h5 {
   color: #000;
-  font-family: "Handlee", times, serif;
+  font-family: "Lixo Heading", times, serif;
 }
 
 .site-wrap {
