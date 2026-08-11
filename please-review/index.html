@@ -35,7 +35,12 @@
     .brand-copy { display: grid; gap: 3px; min-width: 0; }
     .game-title { margin: 0; font-size: 25px; font-weight: 500; line-height: 1.05; letter-spacing: .025em; white-space: nowrap; }
     .subtitle { max-width: 360px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .simulation-tools { display: grid; justify-items: stretch; gap: 6px; flex: none; }
     .clock { font: 700 19px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; background: var(--ink); color: #dff7fb; padding: 10px 12px; border: 3px solid #8297a0; box-shadow: 4px 4px 0 #b9c7cc; white-space: nowrap; }
+    .pause-button { min-height: 30px; padding: 5px 10px; border: 2px solid #607984; background: #f6fafb; color: var(--ink); font: 800 11px/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; box-shadow: 2px 2px 0 rgba(67, 89, 99, .18); }
+    .pause-button:hover { background: #dff7fb; }
+    .pause-button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+    .pause-button[aria-pressed="true"] { border-color: var(--red); background: #ffe5e0; color: #9b2e25; }
     .controls { position: absolute; z-index: 5; left: 18px; bottom: 16px; width: min(var(--controls-width), calc(100% - 36px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; align-items: stretch; padding: 10px 12px 11px; background: rgba(220, 231, 234, .96); border: 2px solid #91a8b2; box-shadow: 4px 4px 0 rgba(67, 89, 99, .18); }
     .control { display: grid; min-width: 0; gap: 3px; font-size: 11px; font-weight: 750; line-height: 1.1; letter-spacing: .01em; }
     .control-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
@@ -112,6 +117,7 @@
       .game-title { font-size: 20px; }
       .subtitle { max-width: 170px; font-size: 10px; }
       .clock { font-size: 14px; padding: 8px; }
+      .pause-button { min-height: 25px; padding: 4px 7px; font-size: 9px; }
       .controls { left: 10px; bottom: 10px; width: calc(100% - 20px); padding: 9px 10px 10px; }
       .scene { min-height: 1080px; }
       .hud { right: 10px; top: 10px; grid-template-columns: repeat(3, 1fr); width: calc(100% - 20px); gap: 5px; }
@@ -140,6 +146,7 @@
       .pr-logo { width: 56px; height: 60px; }
       .game-title { font-size: 15px; }
       .clock { padding: 6px; border-width: 2px; font-size: 12px; }
+      .pause-button { min-height: 23px; padding: 3px 5px; font-size: 8px; }
     }
   </style>
 </head>
@@ -162,7 +169,10 @@
           <p class="subtitle">CI arrivals → review loop → merged work → release train</p>
         </div>
       </div>
-      <div class="clock" id="sim-clock" aria-label="Simulated station time">D01 22:00</div>
+      <div class="simulation-tools">
+        <div class="clock" id="sim-clock" aria-label="Simulated station time">D01 22:00</div>
+        <button class="pause-button" id="pause-simulation" type="button" aria-controls="scene" aria-pressed="false">Pause simulation</button>
+      </div>
     </header>
 
     <section class="scene" id="scene" aria-label="Animated isometric PR Line station showing CI, review, feedback, merged work, and release flow with a western train tunnel, tactile paving, platform screen doors, station furniture, black-suited office commuters, and a uniformed traffic officer">
@@ -210,6 +220,7 @@
         <div class="stat"><div class="stat-label">Release throughput</div><div class="stat-value" id="throughput">0.0/day</div><div class="stat-detail"><span>rolling window</span><span>7 simulated days</span></div></div>
       </div>
       <div class="sr-only" id="release-phase-status" role="status" aria-live="polite"></div>
+      <div class="sr-only" id="simulation-status" role="status" aria-live="polite"></div>
 
       <div class="scene-label route-d" id="label-docs">D · Docs express<small>1.6m baseline</small></div>
       <div class="scene-label route-c" id="label-code">C · Code gate<small>10.5m baseline</small></div>
@@ -271,7 +282,7 @@
       alert: $("capacity-alert"), alertTitle: $("capacity-alert-title"),
       alertHold: $("capacity-alert-hold"), alertPlatform: $("capacity-alert-platform"), alertStatus: $("capacity-alert-status"),
       departureBoard: $("departure-board"), departureStatus: $("departure-status"), departureDetail: $("departure-detail"),
-      releasePhase: $("release-phase-status")
+      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status")
     };
 
     const vertexSource = `
@@ -595,16 +606,17 @@
     let seed=0x51f15e;
     function random(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
     const people=[], releaseHistory=[], occupancyHistory=[], speechBubbles=new Map();
-    let serial=0, simHours=22, nextRelease=24, arrivalCarry=0, lastFrame=performance.now(), trainState=null;
+    let serial=0, simHours=22, nextRelease=24, arrivalCarry=0, lastFrame=performance.now(), animationNow=lastFrame, trainState=null;
     const reviewMinutes=48.5, releaseBuildMinutes=20, simHoursPerSecond=2;
     const trainDepartureMs=1800,trainArrivalMs=4200,trainArrivalOffset=-19;
     const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
+    let simulationPaused=reducedMotion.matches;
     const trainArrivalDuration=()=>reducedMotion.matches?180:trainArrivalMs;
     let holdCapacity=24,platformCapacity=36;
     let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity;
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
-    function addPerson(createdAt=simHours){ const route=chooseRoute(), speed=Number(controls.build.value),now=performance.now(); people.push({id:++serial,route,createdAt,ciReadyAt:createdAt+routes[route].minutes/60/speed,state:"ci",reviewStartedAt:null,reworkStartedAt:null,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
+    function addPerson(createdAt=simHours){ const route=chooseRoute(), speed=Number(controls.build.value),now=animationNow; people.push({id:++serial,route,createdAt,ciReadyAt:createdAt+routes[route].minutes/60/speed,state:"ci",reviewStartedAt:null,reworkStartedAt:null,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
     for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
     for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
     for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.waitingSince=simHours-random()*16;p.state="rework"; }
@@ -643,6 +655,16 @@
     });
     syncOutputs();
 
+    function setSimulationPaused(paused,announce=true){
+      simulationPaused=paused;
+      ui.pauseButton.setAttribute("aria-pressed",String(paused));
+      ui.pauseButton.textContent=paused?"Resume simulation":"Pause simulation";
+      if(announce)ui.simulationStatus.textContent=paused?"Simulation paused.":"Simulation resumed.";
+    }
+    ui.pauseButton.addEventListener("click",()=>setSimulationPaused(!simulationPaused));
+    reducedMotion.addEventListener?.("change",event=>{if(event.matches)setSimulationPaused(true);});
+    setSimulationPaused(simulationPaused,false);
+
     function startRelease(now){
       const eligible=people.filter(p=>p.state==="platform");if(!eligible.length)return;
       const ids=new Set(eligible.map(p=>p.id)),completeAt=simHours+releaseBuildMinutes/60/Number(controls.build.value);
@@ -662,8 +684,11 @@
       }
       if(trainState.phase==="arriving"&&now-trainState.started>trainArrivalDuration())trainState=null;
     }
-    function tick(now){
-      const dt=Math.min(.08,Math.max(0,(now-lastFrame)/1000));lastFrame=now;simHours+=dt*simHoursPerSecond;arrivalCarry+=dt*simHoursPerSecond/24*Number(controls.inflow.value);
+    function tick(frameNow){
+      const dt=Math.min(.08,Math.max(0,(frameNow-lastFrame)/1000));lastFrame=frameNow;
+      if(simulationPaused){render(animationNow);requestAnimationFrame(tick);return;}
+      animationNow+=dt*1000;const now=animationNow;
+      simHours+=dt*simHoursPerSecond;arrivalCarry+=dt*simHoursPerSecond/24*Number(controls.inflow.value);
       while(arrivalCarry>=1){addPerson();arrivalCarry-=1;}
       for(const p of people){
         if(p.state==="ci"&&simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
