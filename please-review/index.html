@@ -643,7 +643,12 @@
     });
     syncOutputs();
 
-    function startRelease(now){ const eligible=people.filter(p=>p.state==="platform");if(!eligible.length)return;const ids=new Set(eligible.map(p=>p.id));eligible.forEach(p=>p.state="boarding");trainState={phase:"loading",started:now,ids,count:eligible.length,completeAt:simHours+releaseBuildMinutes/60/Number(controls.build.value)}; }
+    function startRelease(now){
+      const eligible=people.filter(p=>p.state==="platform");if(!eligible.length)return;
+      const ids=new Set(eligible.map(p=>p.id)),completeAt=simHours+releaseBuildMinutes/60/Number(controls.build.value);
+      eligible.forEach((p,index)=>{p.boardingOrigin=statePosition(p,index,now);p.boardingStartedAt=simHours;p.state="boarding";});
+      trainState={phase:"loading",started:now,ids,count:eligible.length,completeAt};
+    }
     function updateRelease(now){
       if(!trainState)return;
       if(trainState.phase==="loading"&&simHours>=trainState.completeAt){
@@ -686,6 +691,10 @@
       if(p.state==="review"){const reviewClock=reviewsStoppedAt??simHours,t=Math.min(1,(reviewClock-p.reviewStartedAt)/(reviewMinutes/60/Number(controls.review.value)));return pathPosition([p.reviewOrigin||reviewStart,reviewStart,reviewCheckpoint],t);}
       if(p.state==="rework"){const t=Math.min(1,(simHours-p.reworkStartedAt)/(reviewMinutes/60/Number(controls.review.value)));return pathPosition([reviewCheckpoint,feedbackTurn,feedbackQueueEntrance],t);}
       if(p.state==="platform"){const target=platformPosition(index),t=p.platformVisualStartedAt?Math.min(1,(now-p.platformVisualStartedAt)/900):1;if(t<1)return pathPosition([p.platformOrigin||reviewCheckpoint,platformEntry,target],t*t*(3-2*t));p.platformVisualStartedAt=null;return target;}
+      if(p.state==="boarding"){
+        const origin=p.boardingOrigin||platformPosition(index),doorX=origin.x<trainDeck.centerX?3.85:6.75,duration=Math.max(.0001,(trainState?.completeAt||simHours)-p.boardingStartedAt),t=Math.min(1,Math.max(0,(simHours-p.boardingStartedAt)/duration));
+        return pathPosition([origin,{x:doorX,y:trainDeck.y+.02,z:trainDeck.trackEdgeZ+.28},{x:doorX,y:trainDeck.y+.02,z:trainDeck.trackEdgeZ-1.65}],t);
+      }
       return null;
     }
 
@@ -849,9 +858,9 @@
     }
     function render(now){
       resize();
-      const dm=mesh(),queue=people.filter(p=>p.state==="review_queue"),active=people.filter(p=>p.state==="review"),rework=people.filter(p=>p.state==="rework"),platform=people.filter(p=>p.state==="platform");
-      const ci=people.filter(p=>p.state==="ci"),visible=[...ci.slice(-30),...queue.slice(0,holdCapacity),...active,...rework.slice(0,12),...platform.slice(0,platformCapacity)];
-      const indices=new Map();for(const group of [queue,rework,platform])group.forEach((p,i)=>indices.set(p.id,i));
+      const dm=mesh(),queue=people.filter(p=>p.state==="review_queue"),active=people.filter(p=>p.state==="review"),rework=people.filter(p=>p.state==="rework"),platform=people.filter(p=>p.state==="platform"),boarding=people.filter(p=>p.state==="boarding");
+      const ci=people.filter(p=>p.state==="ci"),visible=[...ci.slice(-30),...queue.slice(0,holdCapacity),...active,...rework.slice(0,12),...platform.slice(0,platformCapacity),...boarding];
+      const indices=new Map();for(const group of [queue,rework,platform,boarding])group.forEach((p,i)=>indices.set(p.id,i));
       const holdStress=queue.length/holdCapacity,platformStress=platform.length/platformCapacity;
       capacityDeck(dm,holdDeck,palette.purple);capacityDeck(dm,trainDeck,palette.greenDark);
       crowdFrame(dm,holdDeck,holdStress);crowdFrame(dm,trainDeck,platformStress);
@@ -859,7 +868,7 @@
       platformScreenDoors(dm,platformDoorsOpen);
       guard(dm,guardPost.x,guardPost.y,guardPost.z,rework.length>0,now);
       const speakers=[];
-      for(const p of visible){const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:p.state==="platform"?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);if(pos){person(dm,pos.x,pos.y,pos.z,p,moving,anger,now);speakers.push({p,pos,anger});}}
+      for(const p of visible){const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:["platform","boarding"].includes(p.state)?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework","boarding"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);if(pos){person(dm,pos.x,pos.y,pos.z,p,moving,anger,now);speakers.push({p,pos,anger});}}
       updateSpeechBubbles(speakers,now);
       let trainOffset=0;
       if(trainState?.phase==="departing")trainOffset=Math.min(12,(now-trainState.started)/1000*5.6);
