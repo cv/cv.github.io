@@ -602,13 +602,12 @@
     const trainArrivalDuration=()=>reducedMotion.matches?180:trainArrivalMs;
     let holdCapacity=24,platformCapacity=36;
     let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity;
-    const routeVisualSeconds={docs:.8,code:1.45,image:2.5};
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
-    function addPerson(createdAt=simHours){ const route=chooseRoute(), speed=Number(controls.build.value),now=performance.now(); people.push({id:++serial,route,createdAt,ciReadyAt:createdAt+routes[route].minutes/60/speed,visualStartedAt:now,visualDone:false,state:"ci",reviewStartedAt:null,reworkStartedAt:null,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
-    for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1); p.visualDone=true;p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
-    for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.visualDone=true;p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
-    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.visualDone=true;p.reworkStartedAt=simHours-random()*.5;p.waitingSince=simHours-random()*16;p.state="rework"; }
+    function addPerson(createdAt=simHours){ const route=chooseRoute(), speed=Number(controls.build.value),now=performance.now(); people.push({id:++serial,route,createdAt,ciReadyAt:createdAt+routes[route].minutes/60/speed,state:"ci",reviewStartedAt:null,reworkStartedAt:null,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
+    for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
+    for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
+    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.waitingSince=simHours-random()*16;p.state="rework"; }
 
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
@@ -644,10 +643,10 @@
     });
     syncOutputs();
 
-    function startRelease(now){ const eligible=people.filter(p=>p.state==="platform"&&(!p.platformVisualStartedAt||now-p.platformVisualStartedAt>=900));if(!eligible.length)return;const ids=new Set(eligible.map(p=>p.id));eligible.forEach(p=>p.state="boarding");trainState={phase:"loading",started:now,ids,count:eligible.length,completeAt:simHours+releaseBuildMinutes/60/Number(controls.build.value)}; }
+    function startRelease(now){ const eligible=people.filter(p=>p.state==="platform");if(!eligible.length)return;const ids=new Set(eligible.map(p=>p.id));eligible.forEach(p=>p.state="boarding");trainState={phase:"loading",started:now,ids,count:eligible.length,completeAt:simHours+releaseBuildMinutes/60/Number(controls.build.value)}; }
     function updateRelease(now){
       if(!trainState)return;
-      if(trainState.phase==="loading"&&simHours>=trainState.completeAt&&now-trainState.started>1100){
+      if(trainState.phase==="loading"&&simHours>=trainState.completeAt){
         for(const p of people)if(trainState.ids.has(p.id))p.state="released";
         releaseHistory.push({time:simHours,count:trainState.count});
         trainState.phase="departing";trainState.started=now;
@@ -662,7 +661,7 @@
       const dt=Math.min(.08,Math.max(0,(now-lastFrame)/1000));lastFrame=now;simHours+=dt*simHoursPerSecond;arrivalCarry+=dt*simHoursPerSecond/24*Number(controls.inflow.value);
       while(arrivalCarry>=1){addPerson();arrivalCarry-=1;}
       for(const p of people){
-        if(p.state==="ci"&&p.visualDone&&simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
+        if(p.state==="ci"&&simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
         if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+reviewMinutes/60/Number(controls.review.value)){
           if(random()<Number(controls.feedback.value)/100){p.state="rework";p.reworkStartedAt=simHours;}else{p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
         }
@@ -673,7 +672,7 @@
       updateRelease(now);render(now);requestAnimationFrame(tick);
     }
 
-    function routePosition(p,now){ const info=routes[p.route],duration=routeVisualSeconds[p.route]/Number(controls.build.value),t=Math.min(1,(now-p.visualStartedAt)/1000/duration);if(t>=1)p.visualDone=true;return pointBetween(info.a,info.b,t); }
+    function routePosition(p){ const info=routes[p.route],duration=Math.max(.0001,p.ciReadyAt-p.createdAt),t=Math.min(1,Math.max(0,(simHours-p.createdAt)/duration));return pointBetween(info.a,info.b,t); }
     function pathPosition(points,t){
       const lengths=[];let total=0;for(let i=0;i<points.length-1;i+=1){const a=points[i],b=points[i+1],length=Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z);lengths.push(length);total+=length;}
       let distance=Math.max(0,Math.min(1,t))*total;for(let i=0;i<lengths.length;i+=1){if(distance<=lengths[i]||i===lengths.length-1)return pointBetween(points[i],points[i+1],lengths[i]?distance/lengths[i]:1);distance-=lengths[i];}return points.at(-1);
@@ -682,7 +681,7 @@
     function queuePosition(index){return deckPosition(holdDeck,index);}
     function platformPosition(index){return deckPosition(trainDeck,index);}
     function statePosition(p,index,now){
-      if(p.state==="ci")return routePosition(p,now);
+      if(p.state==="ci")return routePosition(p);
       if(p.state==="review_queue"){const target=queuePosition(index),t=p.queueVisualStartedAt?Math.min(1,(now-p.queueVisualStartedAt)/650):1;if(t<1)return pointBetween(p.queueOrigin||target,target,t*t*(3-2*t));p.queueVisualStartedAt=null;return target;}
       if(p.state==="review"){const reviewClock=reviewsStoppedAt??simHours,t=Math.min(1,(reviewClock-p.reviewStartedAt)/(reviewMinutes/60/Number(controls.review.value)));return pathPosition([p.reviewOrigin||reviewStart,reviewStart,reviewCheckpoint],t);}
       if(p.state==="rework"){const t=Math.min(1,(simHours-p.reworkStartedAt)/(reviewMinutes/60/Number(controls.review.value)));return pathPosition([reviewCheckpoint,feedbackTurn,feedbackQueueEntrance],t);}
