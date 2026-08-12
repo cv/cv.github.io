@@ -719,6 +719,16 @@
       hotfix:{label:"Urgent hotfix",description:"A production fix moving through the station at courier speed.",weight:6,titles:["Patch production regression","Restore failed endpoint","Fix critical configuration"]},
       flaky:{label:"Flaky build",description:"A normal-looking change traveling under its own private rain cloud.",weight:8,titles:["Stabilize intermittent test","Adjust timing-sensitive code","Update async workflow"]}
     };
+    const contextualSpeech={
+      normal:{ci:["CIを確認中","ビルド待ちです"],review_queue:["レビューお願いします","順番を待ちます"],review:["確認お願いします"],rework:["修正してきます"],platform:["マージ済みです"]},
+      tiny:{ci:["1行だけです！","小さな変更です"],review_queue:["すぐ終わります！","差分は小さいです"],review:["ちょっとだけです"],platform:["もうマージ済み！"]},
+      legacy:{ci:["古い仕組みですね…","じっくりビルド中"],review_queue:["昔の資料があります","互換性を確認します"],review:["履歴も見てください"],rework:["慎重に直します"]},
+      large:{ci:["まだ荷解き中です","ビルドも大きい…"],review_queue:["大きめの差分です","レビュー大変かも…"],review:["お時間ください"],rework:["また詰め直します"]},
+      visitor:{ci:["この路線で合ってる？","まずCIですね"],review_queue:["初めてのレビューです","地図を確認します"],review:["メモします！"],rework:["もう一度やります！","コメント確認中です"]},
+      bot:{ci:["DEPENDENCIES OK","RUNNING CHECKS"],review_queue:["AUTOMATED UPDATE","AWAITING APPROVAL"],review:["BEEP BOOP REVIEW"],platform:["MERGE COMPLETE"]},
+      hotfix:{ci:["本番修正です！","急いでチェック！"],review_queue:["緊急です！","先に通ります！"],review:["至急お願いします！"],platform:["修正完了！"]},
+      flaky:{ci:["また落ちた…","今度こそ通れ！"],review_queue:["やっと通った！"],review:["CIは通りました…"],rework:["雨が止まない…"]}
+    };
     function cueTrafficCop(decision){const lines=trafficCopLines[decision];trafficCopLine=lines[Math.floor(random()*lines.length)];}
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
     function randomLongTailIntInclusive(min,max){return Math.floor(Math.pow(random(),5)*(max-min+1))+min;}
@@ -737,10 +747,11 @@
       if(archetype==="hotfix"){ciFailuresRemaining=ciMin;feedbackReturnsRemaining=feedbackMin;reviewDurationFactor=.5;queuePriority=10;}
       if(archetype==="flaky")ciFailuresRemaining=randomIntInclusive(Math.min(ciMax,Math.max(ciMin,Math.ceil(ciMax*.55))),ciMax);
       const title=definition.titles[Math.floor(random()*definition.titles.length)],attemptHours=routes[route].minutes/60*ciDurationFactor,id=++serial;
-      const change={id,title,archetype,route,createdAt,ciDurationFactor,reviewDurationFactor,queuePriority,ciAttempt:1,ciFailuresAssigned:ciFailuresRemaining,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+attemptHours,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsAssigned:feedbackReturnsRemaining,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:"",history:[{time:createdAt,type:"created",label:"PR opened",detail:definition.label}]};
+      const change={id,title,archetype,route,createdAt,ciDurationFactor,reviewDurationFactor,queuePriority,ciAttempt:1,ciFailuresAssigned:ciFailuresRemaining,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+attemptHours,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsAssigned:feedbackReturnsRemaining,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:"",lastContextLine:"",history:[{time:createdAt,type:"created",label:"PR opened",detail:definition.label}]};
       people.push(change);prArchive.set(id,change);
     }
     function recordPRHistory(p,type,label,detail="",time=simHours){p.history.push({time,type,label,detail});}
+    function cuePassengerSpeech(p,now,delay=350){p.nextSpeechAt=Math.min(p.nextSpeechAt,now+delay);}
     for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18);const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform";recordPRHistory(p,"merged","Merged",`Waiting for release train`,p.mergeAt); }
     for(let i=0;i<9;i+=1){ addPerson(simHours-random());const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue";recordPRHistory(p,"queued","Entered initial queue","Waiting for first review",p.waitingSince); }
     for(let i=0;i<3;i+=1){ addPerson(simHours-random());const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours(p);p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework";recordPRHistory(p,"changes","Changes requested","Rework in progress",p.reworkStartedAt); }
@@ -830,13 +841,13 @@
       for(const p of people){
         if(p.state==="ci"){
           const attemptHours=routes[p.route].minutes/60*p.ciDurationFactor;
-          while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){recordPRHistory(p,"ci-failed",`CI attempt ${p.ciAttempt} failed`,`${p.ciFailuresRemaining} retries assigned before failure`);p.ciFailuresRemaining-=1;p.ciAttempt+=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
-          if(simHours>=p.ciReadyAt){recordPRHistory(p,"ci-passed","CI passed",`${p.route.toUpperCase()} route · attempt ${p.ciAttempt}`);p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;recordPRHistory(p,"queued","Entered initial queue","Waiting for first review");}
+          while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){recordPRHistory(p,"ci-failed",`CI attempt ${p.ciAttempt} failed`,`${p.ciFailuresRemaining} retries remaining before failure`);cuePassengerSpeech(p,now);p.ciFailuresRemaining-=1;p.ciAttempt+=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
+          if(simHours>=p.ciReadyAt){recordPRHistory(p,"ci-passed","CI passed",`${p.route.toUpperCase()} route · attempt ${p.ciAttempt}`);p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;recordPRHistory(p,"queued","Entered initial queue","Waiting for first review");cuePassengerSpeech(p,now,600);}
         }
         if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+p.reviewDurationHours){
-          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours(p);recordPRHistory(p,"changes","Changes requested",`${p.feedbackReturnsRemaining} returns remaining`);}else{cueTrafficCop("approved");recordPRHistory(p,"approved","Review approved",`Review pass complete`);p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;recordPRHistory(p,"merged","Merged","Waiting for release train");}
+          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours(p);recordPRHistory(p,"changes","Changes requested",`${p.feedbackReturnsRemaining} returns remaining`);cuePassengerSpeech(p,now,650);}else{cueTrafficCop("approved");recordPRHistory(p,"approved","Review approved",`Review pass complete`);p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;recordPRHistory(p,"merged","Merged","Waiting for release train");cuePassengerSpeech(p,now,650);}
         }
-        if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){recordPRHistory(p,"rework","Rework completed","Returned to initial queue");p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;recordPRHistory(p,"queued","Re-entered initial queue","Waiting for another review");}
+        if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){recordPRHistory(p,"rework","Rework completed","Returned to initial queue");p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;recordPRHistory(p,"queued","Re-entered initial queue","Waiting for another review");cuePassengerSpeech(p,now,500);}
       }
       if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>(b.queuePriority-a.queuePriority)||(a.ciReadyAt-b.ciReadyAt))[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;next.reviewDurationHours=reviewPassHours(next);recordPRHistory(next,"review",`Review pass started`,`Queue wait ${formatWait(simHours-next.waitingSince)}`);}}
       if(!controls.stop.checked&&!trainState&&simHours>=nextRelease){startRelease(now);while(nextRelease<=simHours)nextRelease+=Number(controls.release.value)*24;}
@@ -882,14 +893,20 @@
       if(!dynamic)staticBuffersUploaded=true;
     }
     function project(p){const isoX=p.x-p.z,isoY=(p.x+p.z)*.5-p.y*1.42;return {x:cssWidth/2+isoX*worldPx,y:cssHeight*.54+isoY*worldPx};}
-    function bubbleText(p,anger){
+    function contextualBubbleText(p){
+      const specific=contextualSpeech[p.archetype]?.[p.state]||[],general=contextualSpeech.normal[p.state]||["進行中です"],pool=[...specific,...general];
+      if(p.state==="ci"&&p.ciFailuresAssigned>0)pool.push(`CI retry ${p.ciAttempt}`);
+      if(p.state==="rework"&&p.feedbackReturnsRemaining>0)pool.push(`あと${p.feedbackReturnsRemaining}回？`);
+      const choices=pool.filter(text=>text!==p.lastContextLine),text=(choices.length?choices:pool)[Math.floor(random()*(choices.length||pool.length))];p.lastContextLine=text;return text;
+    }
+    function angryBubbleText(p,anger){
       const pool=[...expletives];
       if(p.state==="rework")pool.push("また差し戻し!?","また修正か！","差し戻しかよ！");
       if(p.state==="platform")pool.push("電車はまだか！","まだ出ないのか！","早く出してくれ！");
-      if(anger>=1.05)pool.push("💩!","😭😭😭");
-      const choices=pool.filter(text=>text!==p.lastExpletive),text=choices[Math.floor(random()*choices.length)];
-      p.lastExpletive=text;return text;
+      if(anger>=1.25)pool.push("💩!","😭😭😭");
+      const choices=pool.filter(text=>text!==p.lastExpletive),text=choices[Math.floor(random()*choices.length)];p.lastExpletive=text;return text;
     }
+    function bubbleText(p,anger){return anger>=1.05&&random()<.38?angryBubbleText(p,anger):contextualBubbleText(p);}
     function overlaps(a,b,padding=8){return a.left<b.right+padding&&a.right+padding>b.left&&a.top<b.bottom+padding&&a.bottom+padding>b.top;}
     function sceneRect(element){
       const r=element.getBoundingClientRect(),s=scene.getBoundingClientRect();
@@ -907,7 +924,7 @@
     }
     function removeBubble(id){const entry=speechBubbles.get(id);if(!entry)return;entry.el.remove();speechBubbles.delete(id);}
     function updateSpeechBubbles(candidates,now){
-      const byId=new Map(candidates.map(candidate=>[candidate.p.id,candidate])),occupied=[ui.reviewStat,ui.platformStat,document.querySelector(".controls"),ui.alert,ui.departureBoard].map(sceneRect);
+      const byId=new Map(candidates.map(candidate=>[candidate.p.id,candidate])),occupied=[ui.reviewStat,ui.platformStat,document.querySelector(".controls"),document.querySelector(".pr-inspector"),ui.alert,ui.departureBoard].map(sceneRect);
       for(const [id,entry] of [...speechBubbles]){
         const candidate=byId.get(id);
         if(now>=entry.expiresAt||!candidate){removeBubble(id);continue;}
@@ -916,7 +933,7 @@
       const maxBubbles=cssWidth<600?2:3;
       if(speechBubbles.size>=maxBubbles||now-lastSpeechAt<900)return;
       const forced=candidates.filter(({p,forcedText})=>forcedText&&!speechBubbles.has(p.id));
-      const ready=forced.length?forced:candidates.filter(({p,anger})=>anger>=.72&&!speechBubbles.has(p.id)&&now>=p.nextSpeechAt).sort((a,b)=>b.anger-a.anger);
+      const ready=forced.length?forced:candidates.filter(({p})=>p.archetype&&!speechBubbles.has(p.id)&&now>=p.nextSpeechAt).sort((a,b)=>b.anger-a.anger);
       if(!ready.length)return;
       const candidate=forced.length?ready[0]:ready[Math.floor(random()*Math.min(3,ready.length))],el=document.createElement("div");
       el.className=`speech-bubble${candidate.bubbleClass?` ${candidate.bubbleClass}`:""}`;el.lang="ja";el.textContent=candidate.forcedText||bubbleText(candidate.p,candidate.anger);el.style.visibility="hidden";speechLayer.append(el);
