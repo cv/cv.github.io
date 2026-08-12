@@ -117,9 +117,6 @@
     .pr-history strong, .pr-history span { display: block; }
     .pr-history span { color: var(--muted); }
     .selection-marker { position: absolute; z-index: 4; width: 34px; height: 18px; border: 3px solid var(--yellow); border-radius: 50%; box-shadow: 0 0 0 2px rgba(23, 43, 56, .75); transform: translate(-50%, -50%); pointer-events: none; }
-    .cop-action-label { position: absolute; z-index: 4; padding: 2px 4px; transform: translate(-50%, -50%) rotate(-7deg); border: 2px solid currentColor; background: #fff; font: 900 clamp(5px, .55vw, 8px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap; pointer-events: none; }
-    .cop-action-label.approved { color: #17643f; background: #e4f7eb; }
-    .cop-action-label.changes { color: #b22f25; background: #ffe5e0; }
     .capacity-alert { position: absolute; z-index: 4; left: calc(30px + var(--controls-width)); bottom: 16px; width: min(350px, calc(100% - var(--controls-width) - 66px)); padding: 10px 12px; background: rgba(246, 250, 251, .96); border: 2px solid #91a8b2; box-shadow: 4px 4px 0 rgba(67, 89, 99, .18); pointer-events: none; }
     .capacity-alert strong { display: block; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
     .capacity-alert-detail { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.35; font-variant-numeric: tabular-nums; }
@@ -210,7 +207,6 @@
     <section class="scene" id="scene" aria-label="Animated isometric PR Line station showing CI, review, feedback, merged work, and release flow with a western train tunnel, tactile paving, platform screen doors, station furniture, black-suited office commuters, and a uniformed traffic officer">
       <canvas id="gl-canvas"></canvas>
       <div class="selection-marker" id="selection-marker" hidden></div>
-      <div class="cop-action-label" id="cop-action-label" hidden></div>
       <div class="speech-layer" id="speech-layer" aria-hidden="true"></div>
       <div class="fallback" id="fallback">WebGL and Canvas2D are unavailable in this browser. Use a current browser.</div>
 
@@ -349,7 +345,7 @@
       alert: $("capacity-alert"), alertTitle: $("capacity-alert-title"),
       alertHold: $("capacity-alert-hold"), alertPlatform: $("capacity-alert-platform"), alertStatus: $("capacity-alert-status"),
       departureBoard: $("departure-board"), departureStatus: $("departure-status"), departureDetail: $("departure-detail"),
-      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status"), selectionMarker: $("selection-marker"), copActionLabel: $("cop-action-label"),
+      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status"), selectionMarker: $("selection-marker"),
       inspectorClose: $("pr-inspector-close"), inspectorPlaceholder: $("pr-inspector-placeholder"), inspectorContent: $("pr-inspector-content"), inspectorArchetype: $("pr-inspector-archetype"), inspectorTitle: $("pr-inspector-title"), inspectorDescription: $("pr-inspector-description"), inspectorState: $("pr-inspector-state"), inspectorAge: $("pr-inspector-age"), inspectorCi: $("pr-inspector-ci"), inspectorReturns: $("pr-inspector-returns"), history: $("pr-history")
     };
 
@@ -665,11 +661,11 @@
       box(m,x-.15,y+1.12,z,.11,.035,.20,trim,false);box(m,x+.15,y+1.12,z,.11,.035,.20,trim,false);
       if(approved){
         rodXY(m,x+.20,y+1.02,x+.62,y+1.15,z+.10,.14,navy);octahedron(m,x+.62,y+1.15,z+.10,.08,palette.white);rodXY(m,x+.62,y+1.15,x+.76,y+1.15,z+.10,.045,palette.rail);box(m,x+.92,y+1.15,z+.10,.36,.30,.10,palette.green);
-        edge(m,[x+.80,y+1.15,z+.16],[x+.89,y+1.06,z+.16],rgb(palette.white));edge(m,[x+.89,y+1.06,z+.16],[x+1.05,y+1.24,z+.16],rgb(palette.white));
+        rodXY(m,x+.80,y+1.15,x+.89,y+1.06,z+.16,.055,palette.white);rodXY(m,x+.89,y+1.06,x+1.05,y+1.24,z+.16,.055,palette.white);
         rodXY(m,x-.20,y+1.02,x-.27,y+.57,z+.04,.14,navy);octahedron(m,x-.27,y+.53,z+.04,.07,palette.white);box(m,x+.17,y+1.29,front+.08,.14,.07,.06,palette.yellow,false);edge(m,[x+.27,y+1.34,front+.10],[x+.43,y+1.40,front+.10],rgb(palette.green));edge(m,[x+.28,y+1.28,front+.10],[x+.48,y+1.28,front+.10],rgb(palette.green));
       }else if(changes){
         rodXY(m,x-.20,y+1.02,x-.58,y+1.13,z+.12,.14,navy);octahedron(m,x-.58,y+1.13,z+.12,.08,palette.white);rodXY(m,x-.58,y+1.13,x-.70,y+1.13,z+.12,.045,palette.rail);box(m,x-.88,y+1.13,z+.12,.42,.34,.10,palette.red);
-        edge(m,[x-1.02,y+1.23,z+.18],[x-.74,y+1.03,z+.18],rgb(palette.white));edge(m,[x-1.02,y+1.03,z+.18],[x-.74,y+1.23,z+.18],rgb(palette.white));
+        rodXY(m,x-1.02,y+1.23,x-.74,y+1.03,z+.18,.055,palette.white);rodXY(m,x-1.02,y+1.03,x-.74,y+1.23,z+.18,.055,palette.white);
         rodXY(m,x+.20,y+1.02,x+.38,y+.66,z+.05,.14,navy);octahedron(m,x+.39,y+.62,z+.05,.07,palette.white);rodXY(m,x+.39,y+.62,x+.68,y+.42,z+.05,.045,palette.red);
       }else if(frantic){
         const leftX=x-.58-wave,rightX=x+.58+wave,handY=y+1.28+lift;rodXY(m,x-.20,y+1.02,leftX,handY,z+.08,.14,navy);rodXY(m,x+.20,y+1.02,rightX,handY,z+.08,.14,navy);octahedron(m,leftX,handY,z+.08,.08,palette.white);octahedron(m,rightX,handY,z+.08,.08,palette.white);rodXY(m,rightX,handY,x+.82+wave,y+1.68-lift,z+.08,.055,palette.red);
@@ -1084,8 +1080,6 @@
       if(trafficCopAction&&now>=trafficCopAction.until)trafficCopAction=null;
       const copStress=Math.max(holdStress,platformStress),guardMode=copStress>=1?"emergency":copStress>=.65?"agitated":trafficCopAction?.type||"idle";
       guard(dm,guardPost.x,guardPost.y,guardPost.z,guardMode,now,copStress);
-      ui.copActionLabel.hidden=!["approved","changes"].includes(guardMode);
-      if(!ui.copActionLabel.hidden){const paddle=guardMode==="approved"?{x:guardPost.x+.92,y:guardPost.y+1.15,z:guardPost.z+.18}:{x:guardPost.x-.88,y:guardPost.y+1.13,z:guardPost.z+.18},screen=project(paddle);ui.copActionLabel.className=`cop-action-label ${guardMode}`;ui.copActionLabel.textContent=guardMode==="approved"?"APPROVED":"CHANGES REQUESTED";ui.copActionLabel.style.left=`${screen.x}px`;ui.copActionLabel.style.top=`${screen.y}px`;}
       const speakers=[];passengerHitTargets.length=0;ui.selectionMarker.hidden=true;
       for(const p of visible){
         const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:["platform","boarding"].includes(p.state)?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework","boarding"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);
