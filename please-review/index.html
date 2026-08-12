@@ -638,7 +638,10 @@
     let holdCapacity=24,platformCapacity=36;
     let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity,trafficCopLine=null;
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
-    const trafficCopLines={approved:["LGTM!","承認！","マージへどうぞ！","出発進行！","ヨシ！"],changes:["差し戻し！","修正お願いします！","テスト追加！","再確認！","もう一周！"]};
+    const trafficCopLines={
+      approved:["LGTM!","承認！","マージへどうぞ！","出発進行！","ヨシ！","問題なし！","そのままマージ！","承認しました！","いいですね！","通過！","SHIP IT!"],
+      changes:["差し戻し！","修正お願いします！","テスト追加！","再確認！","もう一周！","修正して再提出！","コメント確認！","リベースして！","CIを直して！","ここ直して！","要対応！"]
+    };
     const trafficCopSpeaker={id:"traffic-cop",nextSpeechAt:0,lastExpletive:""};
     function cueTrafficCop(decision){const lines=trafficCopLines[decision];trafficCopLine=lines[Math.floor(random()*lines.length)];}
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
