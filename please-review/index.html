@@ -710,14 +710,14 @@
     };
     const trafficCopSpeaker={id:"traffic-cop",nextSpeechAt:0,lastExpletive:""};
     const archetypes={
-      normal:{label:"Regular commuter",description:"A typical change with no unusual routing.",weight:34,titles:["Update service behavior","Refine request handling","Clean up implementation"]},
-      tiny:{label:"Tiny diff",description:"A small, low-risk change carrying almost no baggage.",weight:12,titles:["Fix a typo","Rename one variable","Update a README link"]},
-      legacy:{label:"Legacy expert",description:"A methodical change in an older subsystem with a longer build.",weight:10,titles:["Modernize legacy adapter","Update compatibility layer","Repair old integration"]},
-      large:{label:"Suitcase refactor",description:"A large diff that takes reviewers a long time to unpack.",weight:12,titles:["Refactor authentication stack","Rework storage subsystem","Consolidate service architecture"]},
-      visitor:{label:"First-time contributor",description:"An unfamiliar change that may need several rounds of guidance.",weight:10,titles:["Add first integration","Implement requested feature","Connect a new client"]},
-      bot:{label:"Dependency bot",description:"An automated dependency update with predictable behavior.",weight:8,titles:["Bump dependency versions","Refresh lockfiles","Update base image"]},
-      hotfix:{label:"Urgent hotfix",description:"A production fix moving through the station at courier speed.",weight:6,titles:["Patch production regression","Restore failed endpoint","Fix critical configuration"]},
-      flaky:{label:"Flaky build",description:"A normal-looking change traveling under its own private rain cloud.",weight:8,titles:["Stabilize intermittent test","Adjust timing-sensitive code","Update async workflow"]}
+      normal:{label:"Regular commuter",description:"A typical change with no unusual routing.",weight:70,titles:["Update service behavior","Refine request handling","Clean up implementation"]},
+      tiny:{label:"Tiny diff",description:"A small, low-risk change carrying almost no baggage.",weight:4,titles:["Fix a typo","Rename one variable","Update a README link"]},
+      legacy:{label:"Legacy expert",description:"A methodical change in an older subsystem with a longer build.",weight:2,titles:["Modernize legacy adapter","Update compatibility layer","Repair old integration"]},
+      large:{label:"Suitcase refactor",description:"A large diff that takes reviewers a long time to unpack.",weight:7,titles:["Refactor authentication stack","Rework storage subsystem","Consolidate service architecture"]},
+      visitor:{label:"First-time contributor",description:"An unfamiliar change that may need several rounds of guidance.",weight:3,titles:["Add first integration","Implement requested feature","Connect a new client"]},
+      bot:{label:"Dependency bot",description:"An automated dependency update with predictable behavior.",weight:0,titles:["Bump dependency versions","Refresh lockfiles","Update base image"]},
+      hotfix:{label:"Urgent hotfix",description:"A production fix moving through the station at courier speed.",weight:5,titles:["Patch production regression","Restore failed endpoint","Fix critical configuration"]},
+      flaky:{label:"Flaky build",description:"A normal-looking change traveling under its own private rain cloud.",weight:9,titles:["Stabilize intermittent test","Adjust timing-sensitive code","Update async workflow"]}
     };
     const contextualSpeech={
       normal:{ci:["CIを確認中","ビルド待ちです"],review_queue:["レビューお願いします","順番を待ちます"],review:["確認お願いします"],rework:["修正してきます"],platform:["マージ済みです"]},
