@@ -45,6 +45,13 @@
     .control { display: grid; min-width: 0; gap: 3px; font-size: 11px; font-weight: 750; line-height: 1.1; letter-spacing: .01em; }
     .control-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
     .control output { flex: 0 1 auto; max-width: 54%; color: var(--muted); font-size: 10px; font-weight: 650; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .range-pair { min-width: 0; margin: 0; padding: 0; border: 0; font-size: 11px; font-weight: 750; line-height: 1.1; letter-spacing: .01em; }
+    .range-pair legend { width: 100%; margin: 0 0 3px; padding: 0; }
+    .range-pair-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .range-half { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; min-width: 0; }
+    .range-half input { min-width: 0; }
+    .range-bound { color: var(--muted); font-size: 10px; font-weight: 650; white-space: nowrap; }
+    .range-bound output { color: inherit; font: inherit; }
     input[type="range"] { width: 100%; margin: 0; accent-color: var(--cyan); }
     .switch { display: flex; gap: 8px; align-items: center; min-height: 28px; padding-top: 5px; border-top: 1px solid rgba(96, 117, 130, .42); font-size: 11px; font-weight: 750; white-space: nowrap; }
     .switch input { width: 18px; height: 18px; accent-color: var(--red); }
@@ -107,7 +114,7 @@
     }
     @media (max-width: 1140px) {
       .scene { min-height: 900px; }
-      .capacity-alert { left: 18px; bottom: 565px; width: min(var(--controls-width), calc(100% - 36px)); }
+      .capacity-alert { left: 18px; bottom: 465px; width: min(var(--controls-width), calc(100% - 36px)); }
     }
     @media (max-width: 520px) {
       .app { grid-template-rows: auto 1080px; }
@@ -135,7 +142,7 @@
       .departure-board small { display: none; }
       #label-docs, #label-code, #label-image { display: none; }
       .queue-label small { display: none; }
-      .capacity-alert { left: 10px; bottom: 560px; width: calc(100% - 20px); padding: 8px 9px; }
+      .capacity-alert { left: 10px; bottom: 460px; width: calc(100% - 20px); padding: 8px 9px; }
       .capacity-alert strong { font-size: 11px; }
       .capacity-alert span { font-size: 9px; }
     }
@@ -185,34 +192,31 @@
           <span class="control-heading"><span>Change inflow</span><output id="inflow-output">30 changes/day</output></span>
           <input id="inflow" type="range" min="0" max="60" step="1" value="30">
         </label>
-        <label class="control">
-          <span class="control-heading"><span>Failed CI attempts / PR minimum</span><output id="ci-retries-min-output">0 retries</output></span>
-          <input id="ci-retries-min" type="range" min="0" max="20" step="1" value="0">
-        </label>
-        <label class="control">
-          <span class="control-heading"><span>Failed CI attempts / PR maximum</span><output id="ci-retries-max-output">3 retries</output></span>
-          <input id="ci-retries-max" type="range" min="0" max="20" step="1" value="3">
-        </label>
+        <fieldset class="range-pair">
+          <legend>Failed CI attempts / PR</legend>
+          <div class="range-pair-grid">
+            <label class="range-half"><input id="ci-retries-min" type="range" min="0" max="20" step="1" value="0"><span class="range-bound"><output id="ci-retries-min-output">0</output> min</span></label>
+            <label class="range-half"><input id="ci-retries-max" type="range" min="0" max="20" step="1" value="3"><span class="range-bound"><output id="ci-retries-max-output">3</output> max</span></label>
+          </div>
+        </fieldset>
         <label class="control">
           <span class="control-heading"><span>Release build speed</span><output id="release-build-output">1.0×</output></span>
           <input id="release-build-speed" type="range" min="0.5" max="2" step="0.1" value="1">
         </label>
-        <label class="control">
-          <span class="control-heading"><span>Review + rework speed minimum</span><output id="review-min-output">0.5×</output></span>
-          <input id="review-speed-min" type="range" min="0.25" max="2" step="0.05" value="0.5">
-        </label>
-        <label class="control">
-          <span class="control-heading"><span>Review + rework speed maximum</span><output id="review-max-output">1.5×</output></span>
-          <input id="review-speed-max" type="range" min="0.25" max="2" step="0.05" value="1.5">
-        </label>
-        <label class="control">
-          <span class="control-heading"><span>Feedback returns / PR minimum</span><output id="feedback-min-output">0 returns</output></span>
-          <input id="feedback-min" type="range" min="0" max="50" step="1" value="0">
-        </label>
-        <label class="control">
-          <span class="control-heading"><span>Feedback returns / PR maximum</span><output id="feedback-max-output">25 returns</output></span>
-          <input id="feedback-max" type="range" min="0" max="50" step="1" value="25">
-        </label>
+        <fieldset class="range-pair">
+          <legend>Review + rework speed</legend>
+          <div class="range-pair-grid">
+            <label class="range-half"><input id="review-speed-min" type="range" min="0.25" max="2" step="0.05" value="0.5"><span class="range-bound"><output id="review-min-output">0.5×</output> min</span></label>
+            <label class="range-half"><input id="review-speed-max" type="range" min="0.25" max="2" step="0.05" value="1.5"><span class="range-bound"><output id="review-max-output">1.5×</output> max</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="range-pair">
+          <legend>Feedback returns / PR</legend>
+          <div class="range-pair-grid">
+            <label class="range-half"><input id="feedback-min" type="range" min="0" max="50" step="1" value="0"><span class="range-bound"><output id="feedback-min-output">0</output> min</span></label>
+            <label class="range-half"><input id="feedback-max" type="range" min="0" max="50" step="1" value="25"><span class="range-bound"><output id="feedback-max-output">25</output> max</span></label>
+          </div>
+        </fieldset>
         <label class="control">
           <span class="control-heading"><span>Release interval</span><output id="release-output">1.0 day</output></span>
           <input id="release-days" type="range" min="0.25" max="7" step="0.25" value="1">
@@ -644,14 +648,14 @@
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
       const ciRetriesMin=Number(controls.ciRetriesMin.value),ciRetriesMax=Number(controls.ciRetriesMax.value);
-      outputs.ciRetriesMin.value=`${ciRetriesMin} ${ciRetriesMin===1?"retry":"retries"}`;
-      outputs.ciRetriesMax.value=`${ciRetriesMax} ${ciRetriesMax===1?"retry":"retries"}`;
+      outputs.ciRetriesMin.value=String(ciRetriesMin);
+      outputs.ciRetriesMax.value=String(ciRetriesMax);
       outputs.releaseBuild.value=`${Number(controls.releaseBuild.value).toFixed(1)}×`;
       outputs.reviewMin.value=`${Number(controls.reviewMin.value).toLocaleString("en",{minimumFractionDigits:1,maximumFractionDigits:2})}×`;
       outputs.reviewMax.value=`${Number(controls.reviewMax.value).toLocaleString("en",{minimumFractionDigits:1,maximumFractionDigits:2})}×`;
       const feedbackMin=Number(controls.feedbackMin.value),feedbackMax=Number(controls.feedbackMax.value);
-      outputs.feedbackMin.value=`${feedbackMin} return${feedbackMin===1?"":"s"}`;
-      outputs.feedbackMax.value=`${feedbackMax} return${feedbackMax===1?"":"s"}`;
+      outputs.feedbackMin.value=String(feedbackMin);
+      outputs.feedbackMax.value=String(feedbackMax);
       const days=Number(controls.release.value);outputs.release.value=`${days.toFixed(days%1?2:1)} day${days===1?"":"s"}`;
       holdCapacity=Number(controls.holdSize.value);platformCapacity=Number(controls.platformSize.value);
       setDeckCapacity(holdDeck,holdCapacity);setDeckCapacity(trainDeck,platformCapacity);
