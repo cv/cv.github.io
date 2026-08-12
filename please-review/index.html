@@ -206,8 +206,8 @@
           <input id="review-speed-max" type="range" min="0.25" max="2" step="0.05" value="1.5">
         </label>
         <label class="control">
-          <span class="control-heading"><span>Feedback returns / PR minimum</span><output id="feedback-min-output">1 return</output></span>
-          <input id="feedback-min" type="range" min="0" max="50" step="1" value="1">
+          <span class="control-heading"><span>Feedback returns / PR minimum</span><output id="feedback-min-output">0 returns</output></span>
+          <input id="feedback-min" type="range" min="0" max="50" step="1" value="0">
         </label>
         <label class="control">
           <span class="control-heading"><span>Feedback returns / PR maximum</span><output id="feedback-max-output">25 returns</output></span>
@@ -633,9 +633,10 @@
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
+    function randomLongTailIntInclusive(min,max){return Math.floor(Math.pow(random(),5)*(max-min+1))+min;}
     function randomBetween(min,max){return min+random()*(max-min);}
     function reviewPassHours(){return reviewMinutes/60/randomBetween(Number(controls.reviewMin.value),Number(controls.reviewMax.value));}
-    function addPerson(createdAt=simHours){ const route=chooseRoute(),now=animationNow,ciFailuresRemaining=randomIntInclusive(Number(controls.ciRetriesMin.value),Number(controls.ciRetriesMax.value)),feedbackReturnsRemaining=randomIntInclusive(Number(controls.feedbackMin.value),Number(controls.feedbackMax.value)); people.push({id:++serial,route,createdAt,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+routes[route].minutes/60,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
+    function addPerson(createdAt=simHours){ const route=chooseRoute(),now=animationNow,ciFailuresRemaining=randomIntInclusive(Number(controls.ciRetriesMin.value),Number(controls.ciRetriesMax.value)),feedbackReturnsRemaining=randomLongTailIntInclusive(Number(controls.feedbackMin.value),Number(controls.feedbackMax.value)); people.push({id:++serial,route,createdAt,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+routes[route].minutes/60,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
     for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
     for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
     for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours();p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
