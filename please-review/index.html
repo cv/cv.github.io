@@ -186,8 +186,16 @@
           <input id="inflow" type="range" min="0" max="60" step="1" value="30">
         </label>
         <label class="control">
-          <span class="control-heading"><span>CI routes + release build speed</span><output id="build-output">1.0×</output></span>
-          <input id="build-speed" type="range" min="0.5" max="2" step="0.1" value="1" aria-label="Docs, code, managed images, and release build speed">
+          <span class="control-heading"><span>Failed CI attempts / PR minimum</span><output id="ci-retries-min-output">0 retries</output></span>
+          <input id="ci-retries-min" type="range" min="0" max="20" step="1" value="0">
+        </label>
+        <label class="control">
+          <span class="control-heading"><span>Failed CI attempts / PR maximum</span><output id="ci-retries-max-output">3 retries</output></span>
+          <input id="ci-retries-max" type="range" min="0" max="20" step="1" value="3">
+        </label>
+        <label class="control">
+          <span class="control-heading"><span>Release build speed</span><output id="release-build-output">1.0×</output></span>
+          <input id="release-build-speed" type="range" min="0.5" max="2" step="0.1" value="1">
         </label>
         <label class="control">
           <span class="control-heading"><span>R review + F rework speed</span><output id="review-output">1.0×</output></span>
@@ -269,12 +277,12 @@
 
     const $ = (id) => document.getElementById(id);
     const controls = {
-      inflow: $("inflow"), build: $("build-speed"), review: $("review-speed"),
+      inflow: $("inflow"), ciRetriesMin: $("ci-retries-min"), ciRetriesMax: $("ci-retries-max"), releaseBuild: $("release-build-speed"), review: $("review-speed"),
       feedbackMin: $("feedback-min"), feedbackMax: $("feedback-max"), release: $("release-days"), holdSize: $("hold-capacity"),
       platformSize: $("platform-capacity"), stopReviews: $("stop-reviews"), stop: $("stop-releases")
     };
     const outputs = {
-      inflow: $("inflow-output"), build: $("build-output"), review: $("review-output"),
+      inflow: $("inflow-output"), ciRetriesMin: $("ci-retries-min-output"), ciRetriesMax: $("ci-retries-max-output"), releaseBuild: $("release-build-output"), review: $("review-output"),
       feedbackMin: $("feedback-min-output"), feedbackMax: $("feedback-max-output"), release: $("release-output"), holdSize: $("hold-capacity-output"),
       platformSize: $("platform-capacity-output")
     };
@@ -621,14 +629,17 @@
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
-    function addPerson(createdAt=simHours){ const route=chooseRoute(), speed=Number(controls.build.value),now=animationNow,feedbackReturnsRemaining=randomIntInclusive(Number(controls.feedbackMin.value),Number(controls.feedbackMax.value)); people.push({id:++serial,route,createdAt,ciReadyAt:createdAt+routes[route].minutes/60/speed,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
+    function addPerson(createdAt=simHours){ const route=chooseRoute(),now=animationNow,ciFailuresRemaining=randomIntInclusive(Number(controls.ciRetriesMin.value),Number(controls.ciRetriesMax.value)),feedbackReturnsRemaining=randomIntInclusive(Number(controls.feedbackMin.value),Number(controls.feedbackMax.value)); people.push({id:++serial,route,createdAt,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+routes[route].minutes/60,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
     for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
     for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
     for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
 
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
-      outputs.build.value=`${Number(controls.build.value).toFixed(1)}×`;
+      const ciRetriesMin=Number(controls.ciRetriesMin.value),ciRetriesMax=Number(controls.ciRetriesMax.value);
+      outputs.ciRetriesMin.value=`${ciRetriesMin} ${ciRetriesMin===1?"retry":"retries"}`;
+      outputs.ciRetriesMax.value=`${ciRetriesMax} ${ciRetriesMax===1?"retry":"retries"}`;
+      outputs.releaseBuild.value=`${Number(controls.releaseBuild.value).toFixed(1)}×`;
       outputs.review.value=`${Number(controls.review.value).toFixed(2).replace(/0$/,"")}×`;
       const feedbackMin=Number(controls.feedbackMin.value),feedbackMax=Number(controls.feedbackMax.value);
       outputs.feedbackMin.value=`${feedbackMin} return${feedbackMin===1?"":"s"}`;
@@ -648,9 +659,10 @@
       minControl.addEventListener("input",()=>{if(Number(minControl.value)>Number(maxControl.value))maxControl.value=minControl.value;handleScenarioInput();});
       maxControl.addEventListener("input",()=>{if(Number(maxControl.value)<Number(minControl.value))minControl.value=maxControl.value;handleScenarioInput();});
     }
-    for(const control of [controls.inflow,controls.build,controls.review,controls.holdSize,controls.platformSize]){
+    for(const control of [controls.inflow,controls.releaseBuild,controls.review,controls.holdSize,controls.platformSize]){
       control.addEventListener("input",handleScenarioInput);
     }
+    bindRangePair(controls.ciRetriesMin,controls.ciRetriesMax);
     bindRangePair(controls.feedbackMin,controls.feedbackMax);
     controls.release.addEventListener("input",()=>{
       handleScenarioInput();
@@ -679,7 +691,7 @@
 
     function startRelease(now){
       const eligible=people.filter(p=>p.state==="platform");if(!eligible.length)return;
-      const ids=new Set(eligible.map(p=>p.id)),completeAt=simHours+releaseBuildMinutes/60/Number(controls.build.value);
+      const ids=new Set(eligible.map(p=>p.id)),completeAt=simHours+releaseBuildMinutes/60/Number(controls.releaseBuild.value);
       eligible.forEach((p,index)=>{p.boardingOrigin=statePosition(p,index,now);p.boardingStartedAt=simHours;p.state="boarding";});
       trainState={phase:"loading",started:now,ids,count:eligible.length,completeAt};
     }
@@ -703,7 +715,11 @@
       simHours+=dt*simHoursPerSecond;arrivalCarry+=dt*simHoursPerSecond/24*Number(controls.inflow.value);
       while(arrivalCarry>=1){addPerson();arrivalCarry-=1;}
       for(const p of people){
-        if(p.state==="ci"&&simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
+        if(p.state==="ci"){
+          const attemptHours=routes[p.route].minutes/60;
+          while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){p.ciFailuresRemaining-=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
+          if(simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
+        }
         if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+reviewMinutes/60/Number(controls.review.value)){
           if(p.feedbackReturnsRemaining>0){p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;}else{p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
         }
@@ -714,7 +730,7 @@
       updateRelease(now);render(now);requestAnimationFrame(tick);
     }
 
-    function routePosition(p){ const info=routes[p.route],duration=Math.max(.0001,p.ciReadyAt-p.createdAt),t=Math.min(1,Math.max(0,(simHours-p.createdAt)/duration));return pointBetween(info.a,info.b,t); }
+    function routePosition(p){ const info=routes[p.route],duration=Math.max(.0001,p.ciReadyAt-p.ciAttemptStartedAt),t=Math.min(1,Math.max(0,(simHours-p.ciAttemptStartedAt)/duration));return pointBetween(info.a,info.b,t); }
     function pathPosition(points,t){
       const lengths=[];let total=0;for(let i=0;i<points.length-1;i+=1){const a=points[i],b=points[i+1],length=Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z);lengths.push(length);total+=length;}
       let distance=Math.max(0,Math.min(1,t))*total;for(let i=0;i<lengths.length;i+=1){if(distance<=lengths[i]||i===lengths.length-1)return pointBetween(points[i],points[i+1],lengths[i]?distance/lengths[i]:1);distance-=lengths[i];}return points.at(-1);
