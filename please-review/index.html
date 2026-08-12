@@ -198,8 +198,12 @@
           <input id="release-build-speed" type="range" min="0.5" max="2" step="0.1" value="1">
         </label>
         <label class="control">
-          <span class="control-heading"><span>R review + F rework speed</span><output id="review-output">1.0×</output></span>
-          <input id="review-speed" type="range" min="0.25" max="2" step="0.05" value="1">
+          <span class="control-heading"><span>Review + rework speed minimum</span><output id="review-min-output">0.5×</output></span>
+          <input id="review-speed-min" type="range" min="0.25" max="2" step="0.05" value="0.5">
+        </label>
+        <label class="control">
+          <span class="control-heading"><span>Review + rework speed maximum</span><output id="review-max-output">1.5×</output></span>
+          <input id="review-speed-max" type="range" min="0.25" max="2" step="0.05" value="1.5">
         </label>
         <label class="control">
           <span class="control-heading"><span>Feedback returns / PR minimum</span><output id="feedback-min-output">1 return</output></span>
@@ -277,13 +281,13 @@
 
     const $ = (id) => document.getElementById(id);
     const controls = {
-      inflow: $("inflow"), ciRetriesMin: $("ci-retries-min"), ciRetriesMax: $("ci-retries-max"), releaseBuild: $("release-build-speed"), review: $("review-speed"),
-      feedbackMin: $("feedback-min"), feedbackMax: $("feedback-max"), release: $("release-days"), holdSize: $("hold-capacity"),
+      inflow: $("inflow"), ciRetriesMin: $("ci-retries-min"), ciRetriesMax: $("ci-retries-max"), releaseBuild: $("release-build-speed"),
+      reviewMin: $("review-speed-min"), reviewMax: $("review-speed-max"), feedbackMin: $("feedback-min"), feedbackMax: $("feedback-max"), release: $("release-days"), holdSize: $("hold-capacity"),
       platformSize: $("platform-capacity"), stopReviews: $("stop-reviews"), stop: $("stop-releases")
     };
     const outputs = {
-      inflow: $("inflow-output"), ciRetriesMin: $("ci-retries-min-output"), ciRetriesMax: $("ci-retries-max-output"), releaseBuild: $("release-build-output"), review: $("review-output"),
-      feedbackMin: $("feedback-min-output"), feedbackMax: $("feedback-max-output"), release: $("release-output"), holdSize: $("hold-capacity-output"),
+      inflow: $("inflow-output"), ciRetriesMin: $("ci-retries-min-output"), ciRetriesMax: $("ci-retries-max-output"), releaseBuild: $("release-build-output"),
+      reviewMin: $("review-min-output"), reviewMax: $("review-max-output"), feedbackMin: $("feedback-min-output"), feedbackMax: $("feedback-max-output"), release: $("release-output"), holdSize: $("hold-capacity-output"),
       platformSize: $("platform-capacity-output")
     };
     const ui = {
@@ -629,10 +633,12 @@
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
+    function randomBetween(min,max){return min+random()*(max-min);}
+    function reviewPassHours(){return reviewMinutes/60/randomBetween(Number(controls.reviewMin.value),Number(controls.reviewMax.value));}
     function addPerson(createdAt=simHours){ const route=chooseRoute(),now=animationNow,ciFailuresRemaining=randomIntInclusive(Number(controls.ciRetriesMin.value),Number(controls.ciRetriesMax.value)),feedbackReturnsRemaining=randomIntInclusive(Number(controls.feedbackMin.value),Number(controls.feedbackMax.value)); people.push({id:++serial,route,createdAt,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+routes[route].minutes/60,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
     for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
     for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
-    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
+    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours();p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
 
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
@@ -640,7 +646,8 @@
       outputs.ciRetriesMin.value=`${ciRetriesMin} ${ciRetriesMin===1?"retry":"retries"}`;
       outputs.ciRetriesMax.value=`${ciRetriesMax} ${ciRetriesMax===1?"retry":"retries"}`;
       outputs.releaseBuild.value=`${Number(controls.releaseBuild.value).toFixed(1)}×`;
-      outputs.review.value=`${Number(controls.review.value).toFixed(2).replace(/0$/,"")}×`;
+      outputs.reviewMin.value=`${Number(controls.reviewMin.value).toLocaleString("en",{minimumFractionDigits:1,maximumFractionDigits:2})}×`;
+      outputs.reviewMax.value=`${Number(controls.reviewMax.value).toLocaleString("en",{minimumFractionDigits:1,maximumFractionDigits:2})}×`;
       const feedbackMin=Number(controls.feedbackMin.value),feedbackMax=Number(controls.feedbackMax.value);
       outputs.feedbackMin.value=`${feedbackMin} return${feedbackMin===1?"":"s"}`;
       outputs.feedbackMax.value=`${feedbackMax} return${feedbackMax===1?"":"s"}`;
@@ -659,10 +666,11 @@
       minControl.addEventListener("input",()=>{if(Number(minControl.value)>Number(maxControl.value))maxControl.value=minControl.value;handleScenarioInput();});
       maxControl.addEventListener("input",()=>{if(Number(maxControl.value)<Number(minControl.value))minControl.value=maxControl.value;handleScenarioInput();});
     }
-    for(const control of [controls.inflow,controls.releaseBuild,controls.review,controls.holdSize,controls.platformSize]){
+    for(const control of [controls.inflow,controls.releaseBuild,controls.holdSize,controls.platformSize]){
       control.addEventListener("input",handleScenarioInput);
     }
     bindRangePair(controls.ciRetriesMin,controls.ciRetriesMax);
+    bindRangePair(controls.reviewMin,controls.reviewMax);
     bindRangePair(controls.feedbackMin,controls.feedbackMax);
     controls.release.addEventListener("input",()=>{
       handleScenarioInput();
@@ -720,12 +728,12 @@
           while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){p.ciFailuresRemaining-=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
           if(simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
         }
-        if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+reviewMinutes/60/Number(controls.review.value)){
-          if(p.feedbackReturnsRemaining>0){p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;}else{p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
+        if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+p.reviewDurationHours){
+          if(p.feedbackReturnsRemaining>0){p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours();}else{p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
         }
-        if(p.state==="rework"&&simHours>=p.reworkStartedAt+reviewMinutes/60/Number(controls.review.value)){p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;}
+        if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;}
       }
-      if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>a.ciReadyAt-b.ciReadyAt)[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;}}
+      if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>a.ciReadyAt-b.ciReadyAt)[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;next.reviewDurationHours=reviewPassHours();}}
       if(!controls.stop.checked&&!trainState&&simHours>=nextRelease){startRelease(now);while(nextRelease<=simHours)nextRelease+=Number(controls.release.value)*24;}
       updateRelease(now);render(now);requestAnimationFrame(tick);
     }
@@ -741,8 +749,8 @@
     function statePosition(p,index,now){
       if(p.state==="ci")return routePosition(p);
       if(p.state==="review_queue"){const target=queuePosition(index),t=p.queueVisualStartedAt?Math.min(1,(now-p.queueVisualStartedAt)/650):1;if(t<1)return pointBetween(p.queueOrigin||target,target,t*t*(3-2*t));p.queueVisualStartedAt=null;return target;}
-      if(p.state==="review"){const reviewClock=reviewsStoppedAt??simHours,t=Math.min(1,(reviewClock-p.reviewStartedAt)/(reviewMinutes/60/Number(controls.review.value)));return pathPosition([p.reviewOrigin||reviewStart,reviewStart,reviewCheckpoint],t);}
-      if(p.state==="rework"){const t=Math.min(1,(simHours-p.reworkStartedAt)/(reviewMinutes/60/Number(controls.review.value)));return pathPosition([reviewCheckpoint,feedbackTurn,feedbackQueueEntrance],t);}
+      if(p.state==="review"){const reviewClock=reviewsStoppedAt??simHours,t=Math.min(1,(reviewClock-p.reviewStartedAt)/p.reviewDurationHours);return pathPosition([p.reviewOrigin||reviewStart,reviewStart,reviewCheckpoint],t);}
+      if(p.state==="rework"){const t=Math.min(1,(simHours-p.reworkStartedAt)/p.reworkDurationHours);return pathPosition([reviewCheckpoint,feedbackTurn,feedbackQueueEntrance],t);}
       if(p.state==="platform"){const target=platformPosition(index),t=p.platformVisualStartedAt?Math.min(1,(now-p.platformVisualStartedAt)/900):1;if(t<1)return pathPosition([p.platformOrigin||reviewCheckpoint,platformEntry,target],t*t*(3-2*t));p.platformVisualStartedAt=null;return target;}
       if(p.state==="boarding"){
         const origin=p.boardingOrigin||platformPosition(index),doorX=origin.x<trainDeck.centerX?3.85:6.75,duration=Math.max(.0001,(trainState?.completeAt||simHours)-p.boardingStartedAt),t=Math.min(1,Math.max(0,(simHours-p.boardingStartedAt)/duration));
@@ -892,7 +900,7 @@
       const hold=capacityState("Initial queue",queue.length,holdCapacity,"queue"),deck=capacityState("Merged work",platform.length,platformCapacity,"platform");
       ui.review.textContent=`${queue.length} / ${holdCapacity}`;setStatDetail(ui.reviewDetail,[hold.trend,`${controls.stopReviews.checked?"reviews stopped · ":""}${rework.length} returning · ${active.length} active`]);
       ui.queueLabel.innerHTML=`<span class="station-code">PR-01</span><strong data-short="Q">Q · Initial Queue</strong><small>${queue.length}/${holdCapacity} · ${rework.length} rework</small>`;
-      ui.reviewLabel.textContent=controls.stopReviews.checked?"reviews stopped":"approval · 48.5m/pass";
+      ui.reviewLabel.textContent=controls.stopReviews.checked?"reviews stopped":`${controls.reviewMin.value}–${controls.reviewMax.value}× · 48.5m base`;
       ui.platform.textContent=`${platform.length} / ${platformCapacity}`;setStatDetail(ui.platformDetail,[deck.trend,controls.stop.checked?"trains stopped":`next train ${formatWait(Math.max(0,nextRelease-simHours))}`]);
       ui.platformLabel.textContent=controls.stop.checked?"trains stopped":`train · ${outputs.release.value}`;
       const releasePhase=controls.stop.checked?"Release service suspended.":trainState?.phase==="loading"?"Release train boarding now.":trainState?.phase==="departing"?"Release train departed.":trainState?.phase==="arriving"?"Replacement release train arriving.":"Release service on time.";
