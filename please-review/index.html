@@ -117,6 +117,9 @@
     .pr-history strong, .pr-history span { display: block; }
     .pr-history span { color: var(--muted); }
     .selection-marker { position: absolute; z-index: 4; width: 34px; height: 18px; border: 3px solid var(--yellow); border-radius: 50%; box-shadow: 0 0 0 2px rgba(23, 43, 56, .75); transform: translate(-50%, -50%); pointer-events: none; }
+    .cop-action-label { position: absolute; z-index: 4; padding: 2px 4px; transform: translate(-50%, -50%) rotate(-7deg); border: 2px solid currentColor; background: #fff; font: 900 clamp(5px, .55vw, 8px)/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap; pointer-events: none; }
+    .cop-action-label.approved { color: #17643f; background: #e4f7eb; }
+    .cop-action-label.changes { color: #b22f25; background: #ffe5e0; }
     .capacity-alert { position: absolute; z-index: 4; left: calc(30px + var(--controls-width)); bottom: 16px; width: min(350px, calc(100% - var(--controls-width) - 66px)); padding: 10px 12px; background: rgba(246, 250, 251, .96); border: 2px solid #91a8b2; box-shadow: 4px 4px 0 rgba(67, 89, 99, .18); pointer-events: none; }
     .capacity-alert strong { display: block; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
     .capacity-alert-detail { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.35; font-variant-numeric: tabular-nums; }
@@ -207,6 +210,7 @@
     <section class="scene" id="scene" aria-label="Animated isometric PR Line station showing CI, review, feedback, merged work, and release flow with a western train tunnel, tactile paving, platform screen doors, station furniture, black-suited office commuters, and a uniformed traffic officer">
       <canvas id="gl-canvas"></canvas>
       <div class="selection-marker" id="selection-marker" hidden></div>
+      <div class="cop-action-label" id="cop-action-label" hidden></div>
       <div class="speech-layer" id="speech-layer" aria-hidden="true"></div>
       <div class="fallback" id="fallback">WebGL and Canvas2D are unavailable in this browser. Use a current browser.</div>
 
@@ -345,7 +349,7 @@
       alert: $("capacity-alert"), alertTitle: $("capacity-alert-title"),
       alertHold: $("capacity-alert-hold"), alertPlatform: $("capacity-alert-platform"), alertStatus: $("capacity-alert-status"),
       departureBoard: $("departure-board"), departureStatus: $("departure-status"), departureDetail: $("departure-detail"),
-      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status"), selectionMarker: $("selection-marker"),
+      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status"), selectionMarker: $("selection-marker"), copActionLabel: $("cop-action-label"),
       inspectorClose: $("pr-inspector-close"), inspectorPlaceholder: $("pr-inspector-placeholder"), inspectorContent: $("pr-inspector-content"), inspectorArchetype: $("pr-inspector-archetype"), inspectorTitle: $("pr-inspector-title"), inspectorDescription: $("pr-inspector-description"), inspectorState: $("pr-inspector-state"), inspectorAge: $("pr-inspector-age"), inspectorCi: $("pr-inspector-ci"), inspectorReturns: $("pr-inspector-returns"), history: $("pr-history")
     };
 
@@ -643,8 +647,9 @@
       if(p.archetype==="flaky"){for(const [cloudX,cloudY,size] of [[x-.18,y+1.88,.22],[x+.08,y+1.98,.28],[x+.36,y+1.88,.23]])octahedron(m,cloudX,cloudY,z,size,palette.wallDark);for(const rainX of [x-.18,x+.02,x+.22,x+.42])edge(m,[rainX,y+1.68,z],[rainX-.08,y+1.45,z],rgb(palette.cyan));}
       if(p.archetype==="tiny")scaleRecentGeometry(m,start,origin.x,origin.y,origin.z,.70);
     }
-    function guard(m,x,y,z,bouncing=false,now=performance.now()){
-      const wave=bouncing?Math.sin(now/120)*.10:0,navy="#1d3953",trim="#89b9c9",front=z+.161;
+    function rodXY(m,ax,ay,bx,by,z,width,hex){const dx=bx-ax,dy=by-ay,length=Math.hypot(dx,dy)||1,px=-dy/length*width/2,py=dx/length*width/2;quad(m,[ax+px,ay+py,z],[bx+px,by+py,z],[bx-px,by-py,z],[ax-px,ay-py,z],rgb(hex));}
+    function guard(m,x,y,z,mode="idle",now=performance.now()){
+      const navy="#1d3953",trim="#89b9c9",front=z+.161,approved=mode==="approved",changes=mode==="changes",emergency=mode==="emergency",wave=emergency?Math.sin(now/55)*.18:0,lift=emergency?Math.abs(Math.cos(now/72))*.18:0;
       quad(m,[x-.20,y+.01,z-.16],[x+.20,y+.01,z-.16],[x+.20,y+.01,z+.16],[x-.20,y+.01,z+.16],rgb(palette.shadow,.38),false);
       box(m,x-.09,y+.29,z,.11,.55,.11,navy,false);box(m,x+.09,y+.29,z,.11,.55,.11,navy,false);
       box(m,x-.09,y+.055,z+.035,.15,.10,.23,palette.ink,false);box(m,x+.09,y+.055,z+.035,.15,.10,.23,palette.ink,false);
@@ -656,15 +661,22 @@
       box(m,x,y+.58,front+.01,.41,.075,.035,palette.ink,false);box(m,x,y+.58,front+.035,.06,.10,.025,palette.yellow,false);
       octahedron(m,x-.12,y+.88,front+.035,.045,palette.yellow);box(m,x+.075,y+.82,front+.03,.035,.035,.018,palette.yellow,false);box(m,x+.075,y+.74,front+.03,.035,.035,.018,palette.yellow,false);
       box(m,x-.15,y+1.12,z,.11,.035,.20,trim,false);box(m,x+.15,y+1.12,z,.11,.035,.20,trim,false);
-      const batonBase=x+.43+wave,batonTip=x+.78+wave,elbowX=x+.25,elbowY=y+.86,handY=y+.94;
-      const armDx=batonBase-elbowX,armDy=handY-elbowY,armLength=Math.hypot(armDx,armDy)||1,armPX=-armDy/armLength*.065,armPY=armDx/armLength*.065;
-      box(m,x-.26,y+.80,z,.15,.54,.16,navy,false);octahedron(m,x-.26,y+.49,z,.075,palette.white);
-      box(m,x+.25,y+.98,z,.15,.28,.16,navy,false);
-      quad(m,[elbowX+armPX,elbowY+armPY,z+.10],[batonBase+armPX,handY+armPY,z+.10],[batonBase-armPX,handY-armPY,z+.10],[elbowX-armPX,elbowY-armPY,z+.10],rgb(navy));
-      octahedron(m,batonBase,handY,z+.095,.085,palette.white);
+      if(approved){
+        rodXY(m,x+.20,y+1.02,x+.62,y+1.15,z+.10,.14,navy);octahedron(m,x+.62,y+1.15,z+.10,.08,palette.white);rodXY(m,x+.62,y+1.15,x+.76,y+1.15,z+.10,.045,palette.rail);box(m,x+.92,y+1.15,z+.10,.36,.30,.10,palette.green);
+        edge(m,[x+.80,y+1.15,z+.16],[x+.89,y+1.06,z+.16],rgb(palette.white));edge(m,[x+.89,y+1.06,z+.16],[x+1.05,y+1.24,z+.16],rgb(palette.white));
+        rodXY(m,x-.20,y+1.02,x-.27,y+.57,z+.04,.14,navy);octahedron(m,x-.27,y+.53,z+.04,.07,palette.white);box(m,x+.17,y+1.29,front+.08,.14,.07,.06,palette.yellow,false);edge(m,[x+.27,y+1.34,front+.10],[x+.43,y+1.40,front+.10],rgb(palette.green));edge(m,[x+.28,y+1.28,front+.10],[x+.48,y+1.28,front+.10],rgb(palette.green));
+      }else if(changes){
+        rodXY(m,x-.20,y+1.02,x-.58,y+1.13,z+.12,.14,navy);octahedron(m,x-.58,y+1.13,z+.12,.08,palette.white);rodXY(m,x-.58,y+1.13,x-.70,y+1.13,z+.12,.045,palette.rail);box(m,x-.88,y+1.13,z+.12,.42,.34,.10,palette.red);
+        edge(m,[x-1.02,y+1.23,z+.18],[x-.74,y+1.03,z+.18],rgb(palette.white));edge(m,[x-1.02,y+1.03,z+.18],[x-.74,y+1.23,z+.18],rgb(palette.white));
+        rodXY(m,x+.20,y+1.02,x+.38,y+.66,z+.05,.14,navy);octahedron(m,x+.39,y+.62,z+.05,.07,palette.white);rodXY(m,x+.39,y+.62,x+.68,y+.42,z+.05,.045,palette.red);
+      }else if(emergency){
+        const leftX=x-.58-wave,rightX=x+.58+wave,handY=y+1.28+lift;rodXY(m,x-.20,y+1.02,leftX,handY,z+.08,.14,navy);rodXY(m,x+.20,y+1.02,rightX,handY,z+.08,.14,navy);octahedron(m,leftX,handY,z+.08,.08,palette.white);octahedron(m,rightX,handY,z+.08,.08,palette.white);rodXY(m,rightX,handY,x+.82+wave,y+1.68-lift,z+.08,.055,palette.red);
+        edge(m,[x-.82-wave,y+1.38,z],[x-.98-wave,y+1.58,z],rgb(palette.orange));edge(m,[x+.82+wave,y+1.38,z],[x+1.02+wave,y+1.58,z],rgb(palette.orange));edge(m,[x-.62,y+1.72,z],[x-.72,y+1.94,z],rgb(palette.red));edge(m,[x+.62,y+1.72,z],[x+.72,y+1.94,z],rgb(palette.red));
+      }else{
+        rodXY(m,x-.20,y+1.02,x-.26,y+.53,z+.04,.14,navy);octahedron(m,x-.26,y+.49,z+.04,.07,palette.white);rodXY(m,x+.20,y+1.02,x+.43,y+.94,z+.10,.14,navy);octahedron(m,x+.43,y+.94,z+.10,.08,palette.white);rodXY(m,x+.43,y+.94,x+.78,y+.60,z+.10,.045,palette.red);
+      }
       octahedron(m,x,y+1.29,z,.19,palette.skin);
       box(m,x,y+1.48,z,.36,.13,.32,navy);box(m,x,y+1.445,z+.166,.34,.065,.035,trim,false);box(m,x,y+1.405,z+.225,.44,.045,.14,palette.ink,false);octahedron(m,x,y+1.49,z+.19,.065,palette.yellow);
-      quad(m,[batonBase-.018,y+.922,z+.10],[batonBase+.018,y+.958,z+.10],[batonTip+.018,y+.618,z+.10],[batonTip-.018,y+.582,z+.10],rgb(palette.red));
     }
 
     function train(m,offset=0,doorsOpen=false){
@@ -702,7 +714,7 @@
     let simulationPaused=reducedMotion.matches;
     const trainArrivalDuration=()=>reducedMotion.matches?180:trainArrivalMs;
     let holdCapacity=24,platformCapacity=36;
-    let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity,trafficCopLine=null;
+    let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity,trafficCopLine=null,trafficCopAction=null;
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
     const trafficCopLines={
       approved:["LGTM!","承認！","マージへどうぞ！","出発進行！","ヨシ！","問題なし！","そのままマージ！","承認しました！","いいですね！","通過！","SHIP IT!"],
@@ -729,7 +741,7 @@
       hotfix:{ci:["本番修正です！","急いでチェック！"],review_queue:["緊急です！","先に通ります！"],review:["至急お願いします！"],platform:["修正完了！"]},
       flaky:{ci:["また落ちた…","今度こそ通れ！"],review_queue:["やっと通った！"],review:["CIは通りました…"],rework:["雨が止まない…"]}
     };
-    function cueTrafficCop(decision){const lines=trafficCopLines[decision];trafficCopLine=lines[Math.floor(random()*lines.length)];}
+    function cueTrafficCop(decision){const lines=trafficCopLines[decision];trafficCopLine=lines[Math.floor(random()*lines.length)];trafficCopAction={type:decision,until:animationNow+2500};}
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
     function randomLongTailIntInclusive(min,max){return Math.floor(Math.pow(random(),5)*(max-min+1))+min;}
     function randomBetween(min,max){return min+random()*(max-min);}
@@ -1065,7 +1077,11 @@
       crowdFrame(dm,holdDeck,holdStress);crowdFrame(dm,trainDeck,platformStress);
       const platformDoorsOpen=trainState?.phase==="loading";
       platformScreenDoors(dm,platformDoorsOpen);
-      guard(dm,guardPost.x,guardPost.y,guardPost.z,rework.length>0,now);
+      if(trafficCopAction&&now>=trafficCopAction.until)trafficCopAction=null;
+      const guardMode=holdStress>=1||platformStress>=1?"emergency":trafficCopAction?.type||"idle";
+      guard(dm,guardPost.x,guardPost.y,guardPost.z,guardMode,now);
+      ui.copActionLabel.hidden=!["approved","changes"].includes(guardMode);
+      if(!ui.copActionLabel.hidden){const paddle=guardMode==="approved"?{x:guardPost.x+.92,y:guardPost.y+1.15,z:guardPost.z+.18}:{x:guardPost.x-.88,y:guardPost.y+1.13,z:guardPost.z+.18},screen=project(paddle);ui.copActionLabel.className=`cop-action-label ${guardMode}`;ui.copActionLabel.textContent=guardMode==="approved"?"APPROVED":"CHANGES REQUESTED";ui.copActionLabel.style.left=`${screen.x}px`;ui.copActionLabel.style.top=`${screen.y}px`;}
       const speakers=[];passengerHitTargets.length=0;ui.selectionMarker.hidden=true;
       for(const p of visible){
         const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:["platform","boarding"].includes(p.state)?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework","boarding"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);
