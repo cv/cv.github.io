@@ -648,8 +648,10 @@
       if(p.archetype==="tiny")scaleRecentGeometry(m,start,origin.x,origin.y,origin.z,.70);
     }
     function rodXY(m,ax,ay,bx,by,z,width,hex){const dx=bx-ax,dy=by-ay,length=Math.hypot(dx,dy)||1,px=-dy/length*width/2,py=dx/length*width/2;quad(m,[ax+px,ay+py,z],[bx+px,by+py,z],[bx-px,by-py,z],[ax-px,ay-py,z],rgb(hex));}
-    function guard(m,x,y,z,mode="idle",now=performance.now()){
-      const navy="#1d3953",trim="#89b9c9",front=z+.161,approved=mode==="approved",changes=mode==="changes",emergency=mode==="emergency",wave=emergency?Math.sin(now/55)*.18:0,lift=emergency?Math.abs(Math.cos(now/72))*.18:0;
+    function guard(m,x,y,z,mode="idle",now=performance.now(),crowdStress=0){
+      const panic=Math.min(1.35,Math.max(0,(crowdStress-.65)/.35)),jump=panic?Math.abs(Math.sin(now/(125-55*Math.min(1,panic))))*.14*panic:0,jitter=panic?Math.sin(now/(90-30*Math.min(1,panic)))*.08*panic:0;
+      x+=jitter;y+=jump;
+      const navy="#1d3953",trim="#89b9c9",front=z+.161,approved=mode==="approved",changes=mode==="changes",emergency=mode==="emergency",frantic=emergency||mode==="agitated",wave=frantic?Math.sin(now/(90-35*Math.min(1,panic)))*.18*panic:0,lift=frantic?Math.abs(Math.cos(now/(105-35*Math.min(1,panic))))*.18*panic:0;
       quad(m,[x-.20,y+.01,z-.16],[x+.20,y+.01,z-.16],[x+.20,y+.01,z+.16],[x-.20,y+.01,z+.16],rgb(palette.shadow,.38),false);
       box(m,x-.09,y+.29,z,.11,.55,.11,navy,false);box(m,x+.09,y+.29,z,.11,.55,.11,navy,false);
       box(m,x-.09,y+.055,z+.035,.15,.10,.23,palette.ink,false);box(m,x+.09,y+.055,z+.035,.15,.10,.23,palette.ink,false);
@@ -669,13 +671,15 @@
         rodXY(m,x-.20,y+1.02,x-.58,y+1.13,z+.12,.14,navy);octahedron(m,x-.58,y+1.13,z+.12,.08,palette.white);rodXY(m,x-.58,y+1.13,x-.70,y+1.13,z+.12,.045,palette.rail);box(m,x-.88,y+1.13,z+.12,.42,.34,.10,palette.red);
         edge(m,[x-1.02,y+1.23,z+.18],[x-.74,y+1.03,z+.18],rgb(palette.white));edge(m,[x-1.02,y+1.03,z+.18],[x-.74,y+1.23,z+.18],rgb(palette.white));
         rodXY(m,x+.20,y+1.02,x+.38,y+.66,z+.05,.14,navy);octahedron(m,x+.39,y+.62,z+.05,.07,palette.white);rodXY(m,x+.39,y+.62,x+.68,y+.42,z+.05,.045,palette.red);
-      }else if(emergency){
+      }else if(frantic){
         const leftX=x-.58-wave,rightX=x+.58+wave,handY=y+1.28+lift;rodXY(m,x-.20,y+1.02,leftX,handY,z+.08,.14,navy);rodXY(m,x+.20,y+1.02,rightX,handY,z+.08,.14,navy);octahedron(m,leftX,handY,z+.08,.08,palette.white);octahedron(m,rightX,handY,z+.08,.08,palette.white);rodXY(m,rightX,handY,x+.82+wave,y+1.68-lift,z+.08,.055,palette.red);
         edge(m,[x-.82-wave,y+1.38,z],[x-.98-wave,y+1.58,z],rgb(palette.orange));edge(m,[x+.82+wave,y+1.38,z],[x+1.02+wave,y+1.58,z],rgb(palette.orange));edge(m,[x-.62,y+1.72,z],[x-.72,y+1.94,z],rgb(palette.red));edge(m,[x+.62,y+1.72,z],[x+.72,y+1.94,z],rgb(palette.red));
       }else{
         rodXY(m,x-.20,y+1.02,x-.26,y+.53,z+.04,.14,navy);octahedron(m,x-.26,y+.49,z+.04,.07,palette.white);rodXY(m,x+.20,y+1.02,x+.43,y+.94,z+.10,.14,navy);octahedron(m,x+.43,y+.94,z+.10,.08,palette.white);rodXY(m,x+.43,y+.94,x+.78,y+.60,z+.10,.045,palette.red);
       }
-      octahedron(m,x,y+1.29,z,.19,palette.skin);
+      const guardFlush=mixHex(palette.skin,palette.red,Math.min(.55,panic*.38));octahedron(m,x,y+1.29,z,.19,guardFlush);
+      if(panic>.08){const brow=Math.min(.055,panic*.045);edge(m,[x-.15,y+1.39+brow,z+.15],[x-.035,y+1.37,z+.15],rgb(palette.ink));edge(m,[x+.035,y+1.37,z+.15],[x+.15,y+1.39+brow,z+.15],rgb(palette.ink));}
+      if(panic>.45){edge(m,[x-.30,y+1.55,z],[x-.45,y+1.72+panic*.04,z],rgb(palette.orange));edge(m,[x+.30,y+1.55,z],[x+.45,y+1.72+panic*.04,z],rgb(palette.orange));}
       box(m,x,y+1.48,z,.36,.13,.32,navy);box(m,x,y+1.445,z+.166,.34,.065,.035,trim,false);box(m,x,y+1.405,z+.225,.44,.045,.14,palette.ink,false);octahedron(m,x,y+1.49,z+.19,.065,palette.yellow);
     }
 
@@ -1078,8 +1082,8 @@
       const platformDoorsOpen=trainState?.phase==="loading";
       platformScreenDoors(dm,platformDoorsOpen);
       if(trafficCopAction&&now>=trafficCopAction.until)trafficCopAction=null;
-      const guardMode=holdStress>=1||platformStress>=1?"emergency":trafficCopAction?.type||"idle";
-      guard(dm,guardPost.x,guardPost.y,guardPost.z,guardMode,now);
+      const copStress=Math.max(holdStress,platformStress),guardMode=copStress>=1?"emergency":copStress>=.65?"agitated":trafficCopAction?.type||"idle";
+      guard(dm,guardPost.x,guardPost.y,guardPost.z,guardMode,now,copStress);
       ui.copActionLabel.hidden=!["approved","changes"].includes(guardMode);
       if(!ui.copActionLabel.hidden){const paddle=guardMode==="approved"?{x:guardPost.x+.92,y:guardPost.y+1.15,z:guardPost.z+.18}:{x:guardPost.x-.88,y:guardPost.y+1.13,z:guardPost.z+.18},screen=project(paddle);ui.copActionLabel.className=`cop-action-label ${guardMode}`;ui.copActionLabel.textContent=guardMode==="approved"?"APPROVED":"CHANGES REQUESTED";ui.copActionLabel.style.left=`${screen.x}px`;ui.copActionLabel.style.top=`${screen.y}px`;}
       const speakers=[];passengerHitTargets.length=0;ui.selectionMarker.hidden=true;
