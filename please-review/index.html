@@ -643,16 +643,39 @@
       changes:["差し戻し！","修正お願いします！","テスト追加！","再確認！","もう一周！","修正して再提出！","コメント確認！","リベースして！","CIを直して！","ここ直して！","要対応！"]
     };
     const trafficCopSpeaker={id:"traffic-cop",nextSpeechAt:0,lastExpletive:""};
+    const archetypes={
+      normal:{label:"Regular commuter",description:"A typical change with no unusual routing.",weight:34,titles:["Update service behavior","Refine request handling","Clean up implementation"]},
+      tiny:{label:"Tiny diff",description:"A small, low-risk change carrying almost no baggage.",weight:12,titles:["Fix a typo","Rename one variable","Update a README link"]},
+      legacy:{label:"Legacy expert",description:"A methodical change in an older subsystem with a longer build.",weight:10,titles:["Modernize legacy adapter","Update compatibility layer","Repair old integration"]},
+      large:{label:"Suitcase refactor",description:"A large diff that takes reviewers a long time to unpack.",weight:12,titles:["Refactor authentication stack","Rework storage subsystem","Consolidate service architecture"]},
+      visitor:{label:"First-time contributor",description:"An unfamiliar change that may need several rounds of guidance.",weight:10,titles:["Add first integration","Implement requested feature","Connect a new client"]},
+      bot:{label:"Dependency bot",description:"An automated dependency update with predictable behavior.",weight:8,titles:["Bump dependency versions","Refresh lockfiles","Update base image"]},
+      hotfix:{label:"Urgent hotfix",description:"A production fix moving through the station at courier speed.",weight:6,titles:["Patch production regression","Restore failed endpoint","Fix critical configuration"]},
+      flaky:{label:"Flaky build",description:"A normal-looking change traveling under its own private rain cloud.",weight:8,titles:["Stabilize intermittent test","Adjust timing-sensitive code","Update async workflow"]}
+    };
     function cueTrafficCop(decision){const lines=trafficCopLines[decision];trafficCopLine=lines[Math.floor(random()*lines.length)];}
-    function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
     function randomLongTailIntInclusive(min,max){return Math.floor(Math.pow(random(),5)*(max-min+1))+min;}
     function randomBetween(min,max){return min+random()*(max-min);}
-    function reviewPassHours(){return reviewMinutes/60/randomBetween(Number(controls.reviewMin.value),Number(controls.reviewMax.value));}
-    function addPerson(createdAt=simHours){ const route=chooseRoute(),now=animationNow,ciFailuresRemaining=randomIntInclusive(Number(controls.ciRetriesMin.value),Number(controls.ciRetriesMax.value)),feedbackReturnsRemaining=randomLongTailIntInclusive(Number(controls.feedbackMin.value),Number(controls.feedbackMax.value)); people.push({id:++serial,route,createdAt,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+routes[route].minutes/60,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""}); }
+    function chooseArchetype(){let pick=random()*100;for(const [key,definition] of Object.entries(archetypes)){pick-=definition.weight;if(pick<0)return key;}return "normal";}
+    function chooseRoute(archetype){if(archetype==="tiny")return "docs";if(["legacy","large"].includes(archetype))return "image";if(["bot","hotfix","flaky"].includes(archetype))return "code";const n=random();return n<.10?"docs":n<.85?"code":"image";}
+    function reviewPassHours(p){return reviewMinutes/60/randomBetween(Number(controls.reviewMin.value),Number(controls.reviewMax.value))*(p.reviewDurationFactor||1);}
+    function addPerson(createdAt=simHours){
+      const archetype=chooseArchetype(),definition=archetypes[archetype],route=chooseRoute(archetype),now=animationNow,ciMin=Number(controls.ciRetriesMin.value),ciMax=Number(controls.ciRetriesMax.value),feedbackMin=Number(controls.feedbackMin.value),feedbackMax=Number(controls.feedbackMax.value);
+      let ciFailuresRemaining=randomIntInclusive(ciMin,ciMax),feedbackReturnsRemaining=randomLongTailIntInclusive(feedbackMin,feedbackMax),ciDurationFactor=1,reviewDurationFactor=1,queuePriority=0;
+      if(archetype==="tiny"){ciFailuresRemaining=ciMin;feedbackReturnsRemaining=feedbackMin;reviewDurationFactor=.65;}
+      if(archetype==="legacy"){ciDurationFactor=1.8;reviewDurationFactor=1.15;}
+      if(archetype==="large")reviewDurationFactor=2.4;
+      if(archetype==="visitor")feedbackReturnsRemaining=randomIntInclusive(Math.min(feedbackMax,Math.max(feedbackMin,Math.ceil(feedbackMax*.35))),feedbackMax);
+      if(archetype==="bot"){feedbackReturnsRemaining=feedbackMin;reviewDurationFactor=.55;}
+      if(archetype==="hotfix"){ciFailuresRemaining=ciMin;feedbackReturnsRemaining=feedbackMin;reviewDurationFactor=.5;queuePriority=10;}
+      if(archetype==="flaky")ciFailuresRemaining=randomIntInclusive(Math.min(ciMax,Math.max(ciMin,Math.ceil(ciMax*.55))),ciMax);
+      const title=definition.titles[Math.floor(random()*definition.titles.length)],attemptHours=routes[route].minutes/60*ciDurationFactor;
+      people.push({id:++serial,title,archetype,route,createdAt,ciDurationFactor,reviewDurationFactor,queuePriority,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+attemptHours,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""});
+    }
     for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
     for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
-    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours();p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
+    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours(p);p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
 
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
@@ -738,16 +761,16 @@
       while(arrivalCarry>=1){addPerson();arrivalCarry-=1;}
       for(const p of people){
         if(p.state==="ci"){
-          const attemptHours=routes[p.route].minutes/60;
+          const attemptHours=routes[p.route].minutes/60*p.ciDurationFactor;
           while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){p.ciFailuresRemaining-=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
           if(simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
         }
         if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+p.reviewDurationHours){
-          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours();}else{cueTrafficCop("approved");p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
+          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours(p);}else{cueTrafficCop("approved");p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
         }
         if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;}
       }
-      if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>a.ciReadyAt-b.ciReadyAt)[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;next.reviewDurationHours=reviewPassHours();}}
+      if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>(b.queuePriority-a.queuePriority)||(a.ciReadyAt-b.ciReadyAt))[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;next.reviewDurationHours=reviewPassHours(next);}}
       if(!controls.stop.checked&&!trainState&&simHours>=nextRelease){startRelease(now);while(nextRelease<=simHours)nextRelease+=Number(controls.release.value)*24;}
       updateRelease(now);render(now);requestAnimationFrame(tick);
     }
