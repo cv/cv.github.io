@@ -98,6 +98,25 @@
     .queue-label { width: clamp(72px, 8.6vw, 124px); }
     .queue-label strong { display: block; font-size: clamp(7px, .78vw, 11px); line-height: 1; }
     .queue-label small { color: #dce7ea; }
+    .pr-inspector { position: absolute; z-index: 6; left: 18px; bottom: 435px; width: min(var(--controls-width), calc(100% - 36px)); max-height: min(260px, calc(100% - 450px)); overflow: hidden; padding: 9px 11px 10px; background: rgba(246, 250, 251, .97); border: 2px solid #607984; box-shadow: 4px 4px 0 rgba(67, 89, 99, .20); }
+    .pr-inspector-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .pr-inspector-header h2 { margin: 0; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+    .pr-inspector-close { width: 24px; height: 24px; padding: 0; border: 1px solid #91a8b2; background: #fff; color: var(--ink); font-size: 17px; line-height: 1; cursor: pointer; }
+    .pr-inspector-placeholder { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .pr-inspector-content { margin-top: 6px; overflow: hidden; }
+    .pr-inspector-archetype { display: inline-block; padding: 2px 6px; background: var(--ink); color: #fff; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .pr-inspector-title { display: block; margin-top: 4px; overflow: hidden; font-size: 13px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+    .pr-inspector-description { margin: 3px 0 6px; color: var(--muted); font-size: 10px; line-height: 1.25; }
+    .pr-inspector-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 9px; margin: 0 0 6px; font-size: 10px; }
+    .pr-inspector-metrics div { display: flex; justify-content: space-between; gap: 5px; min-width: 0; }
+    .pr-inspector-metrics dt { color: var(--muted); }
+    .pr-inspector-metrics dd { margin: 0; overflow: hidden; font-weight: 750; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+    .pr-history { max-height: 92px; margin: 0; padding: 0 0 0 18px; overflow: auto; color: var(--ink); font-size: 9px; line-height: 1.25; }
+    .pr-history li { margin-bottom: 4px; padding-left: 2px; }
+    .pr-history time { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .pr-history strong, .pr-history span { display: block; }
+    .pr-history span { color: var(--muted); }
+    .selection-marker { position: absolute; z-index: 4; width: 34px; height: 18px; border: 3px solid var(--yellow); border-radius: 50%; box-shadow: 0 0 0 2px rgba(23, 43, 56, .75); transform: translate(-50%, -50%); pointer-events: none; }
     .capacity-alert { position: absolute; z-index: 4; left: calc(30px + var(--controls-width)); bottom: 16px; width: min(350px, calc(100% - var(--controls-width) - 66px)); padding: 10px 12px; background: rgba(246, 250, 251, .96); border: 2px solid #91a8b2; box-shadow: 4px 4px 0 rgba(67, 89, 99, .18); pointer-events: none; }
     .capacity-alert strong { display: block; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
     .capacity-alert-detail { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.35; font-variant-numeric: tabular-nums; }
@@ -117,7 +136,6 @@
     }
     @media (max-width: 1140px) {
       .scene { min-height: 900px; }
-      .capacity-alert { left: 18px; bottom: 465px; width: min(var(--controls-width), calc(100% - 36px)); }
     }
     @media (max-width: 520px) {
       .app { grid-template-rows: auto 1080px; }
@@ -145,7 +163,8 @@
       .departure-board small { display: none; }
       #label-docs, #label-code, #label-image { display: none; }
       .queue-label small { display: none; }
-      .capacity-alert { left: 10px; bottom: 460px; width: calc(100% - 20px); padding: 8px 9px; }
+      .pr-inspector { left: 10px; bottom: 460px; width: calc(100% - 20px); max-height: 180px; }
+      .capacity-alert { left: 10px; bottom: 650px; width: calc(100% - 20px); padding: 8px 9px; }
       .capacity-alert strong { font-size: 11px; }
       .capacity-alert span { font-size: 9px; }
     }
@@ -187,8 +206,29 @@
 
     <section class="scene" id="scene" aria-label="Animated isometric PR Line station showing CI, review, feedback, merged work, and release flow with a western train tunnel, tactile paving, platform screen doors, station furniture, black-suited office commuters, and a uniformed traffic officer">
       <canvas id="gl-canvas"></canvas>
+      <div class="selection-marker" id="selection-marker" hidden></div>
       <div class="speech-layer" id="speech-layer" aria-hidden="true"></div>
       <div class="fallback" id="fallback">WebGL and Canvas2D are unavailable in this browser. Use a current browser.</div>
+
+      <aside class="pr-inspector" id="pr-inspector" aria-live="polite">
+        <div class="pr-inspector-header">
+          <h2>PR inspector</h2>
+          <button class="pr-inspector-close" id="pr-inspector-close" type="button" aria-label="Close PR inspector" hidden>×</button>
+        </div>
+        <p class="pr-inspector-placeholder" id="pr-inspector-placeholder">Select a passenger to inspect its change and complete station history.</p>
+        <div class="pr-inspector-content" id="pr-inspector-content" hidden>
+          <span class="pr-inspector-archetype" id="pr-inspector-archetype"></span>
+          <strong class="pr-inspector-title" id="pr-inspector-title"></strong>
+          <p class="pr-inspector-description" id="pr-inspector-description"></p>
+          <dl class="pr-inspector-metrics">
+            <div><dt>Status</dt><dd id="pr-inspector-state"></dd></div>
+            <div><dt>Age</dt><dd id="pr-inspector-age"></dd></div>
+            <div><dt>CI</dt><dd id="pr-inspector-ci"></dd></div>
+            <div><dt>Returns</dt><dd id="pr-inspector-returns"></dd></div>
+          </dl>
+          <ol class="pr-history" id="pr-history"></ol>
+        </div>
+      </aside>
 
       <section class="controls" aria-label="Simulation controls">
         <label class="control">
@@ -305,7 +345,8 @@
       alert: $("capacity-alert"), alertTitle: $("capacity-alert-title"),
       alertHold: $("capacity-alert-hold"), alertPlatform: $("capacity-alert-platform"), alertStatus: $("capacity-alert-status"),
       departureBoard: $("departure-board"), departureStatus: $("departure-status"), departureDetail: $("departure-detail"),
-      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status")
+      releasePhase: $("release-phase-status"), pauseButton: $("pause-simulation"), simulationStatus: $("simulation-status"), selectionMarker: $("selection-marker"),
+      inspectorClose: $("pr-inspector-close"), inspectorPlaceholder: $("pr-inspector-placeholder"), inspectorContent: $("pr-inspector-content"), inspectorArchetype: $("pr-inspector-archetype"), inspectorTitle: $("pr-inspector-title"), inspectorDescription: $("pr-inspector-description"), inspectorState: $("pr-inspector-state"), inspectorAge: $("pr-inspector-age"), inspectorCi: $("pr-inspector-ci"), inspectorReturns: $("pr-inspector-returns"), history: $("pr-history")
     };
 
     const vertexSource = `
@@ -628,8 +669,9 @@
 
     let seed=0x51f15e;
     function random(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
-    const people=[], releaseHistory=[], occupancyHistory=[], speechBubbles=new Map();
-    let serial=0, simHours=22, nextRelease=24, arrivalCarry=0, lastFrame=performance.now(), animationNow=lastFrame, trainState=null;
+    const people=[], releaseHistory=[], occupancyHistory=[], speechBubbles=new Map(),prArchive=new Map();
+    let serial=0, simHours=22, nextRelease=24, arrivalCarry=0, lastFrame=performance.now(), animationNow=lastFrame, trainState=null, selectedPrId=null;
+    const passengerHitTargets=[];
     const reviewMinutes=48.5, releaseBuildMinutes=20, simHoursPerSecond=2;
     const trainDepartureMs=1800,trainArrivalMs=4200,trainArrivalOffset=-19;
     const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -670,12 +712,14 @@
       if(archetype==="bot"){feedbackReturnsRemaining=feedbackMin;reviewDurationFactor=.55;}
       if(archetype==="hotfix"){ciFailuresRemaining=ciMin;feedbackReturnsRemaining=feedbackMin;reviewDurationFactor=.5;queuePriority=10;}
       if(archetype==="flaky")ciFailuresRemaining=randomIntInclusive(Math.min(ciMax,Math.max(ciMin,Math.ceil(ciMax*.55))),ciMax);
-      const title=definition.titles[Math.floor(random()*definition.titles.length)],attemptHours=routes[route].minutes/60*ciDurationFactor;
-      people.push({id:++serial,title,archetype,route,createdAt,ciDurationFactor,reviewDurationFactor,queuePriority,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+attemptHours,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:""});
+      const title=definition.titles[Math.floor(random()*definition.titles.length)],attemptHours=routes[route].minutes/60*ciDurationFactor,id=++serial;
+      const change={id,title,archetype,route,createdAt,ciDurationFactor,reviewDurationFactor,queuePriority,ciAttempt:1,ciFailuresAssigned:ciFailuresRemaining,ciAttemptStartedAt:createdAt,ciReadyAt:createdAt+attemptHours,ciFailuresRemaining,state:"ci",reviewStartedAt:null,reworkStartedAt:null,feedbackReturnsAssigned:feedbackReturnsRemaining,feedbackReturnsRemaining,mergeAt:null,waitingSince:null,platformEnteredAt:null,patienceHours:5+random()*15,agitationRate:.72+random()*.86,agitationPhase:random()*Math.PI*2,nextSpeechAt:now+4500+random()*9000,lastExpletive:"",history:[{time:createdAt,type:"created",label:"PR opened",detail:definition.label}]};
+      people.push(change);prArchive.set(id,change);
     }
-    for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18); const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform"; }
-    for(let i=0;i<9;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue"; }
-    for(let i=0;i<3;i+=1){ addPerson(simHours-random()); const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours(p);p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework"; }
+    function recordPRHistory(p,type,label,detail="",time=simHours){p.history.push({time,type,label,detail});}
+    for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18);const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform";recordPRHistory(p,"merged","Merged",`Waiting for release train`,p.mergeAt); }
+    for(let i=0;i<9;i+=1){ addPerson(simHours-random());const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue";recordPRHistory(p,"queued","Entered initial queue","Waiting for first review",p.waitingSince); }
+    for(let i=0;i<3;i+=1){ addPerson(simHours-random());const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours(p);p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework";recordPRHistory(p,"changes","Changes requested","Rework in progress",p.reworkStartedAt); }
 
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
@@ -737,13 +781,13 @@
     function startRelease(now){
       const eligible=people.filter(p=>p.state==="platform");if(!eligible.length)return;
       const ids=new Set(eligible.map(p=>p.id)),completeAt=simHours+releaseBuildMinutes/60/Number(controls.releaseBuild.value);
-      eligible.forEach((p,index)=>{p.boardingOrigin=statePosition(p,index,now);p.boardingStartedAt=simHours;p.state="boarding";});
+      eligible.forEach((p,index)=>{p.boardingOrigin=statePosition(p,index,now);p.boardingStartedAt=simHours;p.state="boarding";recordPRHistory(p,"boarding","Boarding release train",`Platform wait ${formatWait(simHours-p.platformEnteredAt)}`);});
       trainState={phase:"loading",started:now,ids,count:eligible.length,completeAt};
     }
     function updateRelease(now){
       if(!trainState)return;
       if(trainState.phase==="loading"&&simHours>=trainState.completeAt){
-        for(const p of people)if(trainState.ids.has(p.id))p.state="released";
+        for(const p of people)if(trainState.ids.has(p.id)){p.state="released";recordPRHistory(p,"released","Released","Shipped to production");}
         releaseHistory.push({time:simHours,count:trainState.count});
         trainState.phase="departing";trainState.started=now;
       }
@@ -762,15 +806,15 @@
       for(const p of people){
         if(p.state==="ci"){
           const attemptHours=routes[p.route].minutes/60*p.ciDurationFactor;
-          while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){p.ciFailuresRemaining-=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
-          if(simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
+          while(simHours>=p.ciReadyAt&&p.ciFailuresRemaining>0){recordPRHistory(p,"ci-failed",`CI attempt ${p.ciAttempt} failed`,`${p.ciFailuresRemaining} retries assigned before failure`);p.ciFailuresRemaining-=1;p.ciAttempt+=1;p.ciAttemptStartedAt=p.ciReadyAt;p.ciReadyAt+=attemptHours;}
+          if(simHours>=p.ciReadyAt){recordPRHistory(p,"ci-passed","CI passed",`${p.route.toUpperCase()} route · attempt ${p.ciAttempt}`);p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;recordPRHistory(p,"queued","Entered initial queue","Waiting for first review");}
         }
         if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+p.reviewDurationHours){
-          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours(p);}else{cueTrafficCop("approved");p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
+          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours(p);recordPRHistory(p,"changes","Changes requested",`${p.feedbackReturnsRemaining} returns remaining`);}else{cueTrafficCop("approved");recordPRHistory(p,"approved","Review approved",`Review pass complete`);p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;recordPRHistory(p,"merged","Merged","Waiting for release train");}
         }
-        if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;}
+        if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){recordPRHistory(p,"rework","Rework completed","Returned to initial queue");p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;recordPRHistory(p,"queued","Re-entered initial queue","Waiting for another review");}
       }
-      if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>(b.queuePriority-a.queuePriority)||(a.ciReadyAt-b.ciReadyAt))[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;next.reviewDurationHours=reviewPassHours(next);}}
+      if(!controls.stopReviews.checked&&!people.some(p=>p.state==="review")){const queued=people.filter(p=>p.state==="review_queue"),next=[...queued].sort((a,b)=>(b.queuePriority-a.queuePriority)||(a.ciReadyAt-b.ciReadyAt))[0];if(next){next.reviewOrigin=statePosition(next,queued.indexOf(next),now);next.state="review";next.reviewStartedAt=simHours;next.reviewDurationHours=reviewPassHours(next);recordPRHistory(next,"review",`Review pass started`,`Queue wait ${formatWait(simHours-next.waitingSince)}`);}}
       if(!controls.stop.checked&&!trainState&&simHours>=nextRelease){startRelease(now);while(nextRelease<=simHours)nextRelease+=Number(controls.release.value)*24;}
       updateRelease(now);render(now);requestAnimationFrame(tick);
     }
@@ -912,6 +956,19 @@
     }
     function placeLabels(){for(const [el,p] of labels){const s=project(p),half=el.offsetWidth/2;const x=Math.max(half+6,Math.min(cssWidth-half-6,s.x));const y=Math.max(el.offsetHeight+6,Math.min(cssHeight-8,s.y));el.style.left=`${x}px`;el.style.top=`${y}px`;}}
     function formatWait(hours){if(!Number.isFinite(hours))return "n/a";if(hours<1)return `${Math.max(1,Math.round(hours*60))}m`;if(hours<24)return `${hours.toFixed(hours<10?1:0)}h`;return `${(hours/24).toFixed(1)}d`;}
+    function formatSimTime(hours){const day=Math.floor(hours/24)+1,hour=Math.floor(hours%24),minute=Math.floor((hours%1)*60);return `D${String(day).padStart(2,"0")} ${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}`;}
+    function stateLabel(state){return {ci:"Running CI",review_queue:"Initial queue",review:"In review",rework:"Fixing feedback",platform:"Merged work",boarding:"Boarding",released:"Released"}[state]||state;}
+    function selectPR(id){selectedPrId=prArchive.has(id)?id:null;ui.inspectorPlaceholder.hidden=selectedPrId!==null;ui.inspectorContent.hidden=selectedPrId===null;ui.inspectorClose.hidden=selectedPrId===null;ui.history.dataset.prId="";updateInspector();}
+    function updateInspector(){
+      const p=selectedPrId===null?null:prArchive.get(selectedPrId);if(!p)return;
+      const definition=archetypes[p.archetype],ciUsed=p.ciFailuresAssigned-p.ciFailuresRemaining,returnsUsed=p.feedbackReturnsAssigned-p.feedbackReturnsRemaining;
+      ui.inspectorArchetype.textContent=definition.label;ui.inspectorTitle.textContent=`PR #${p.id} · ${p.title}`;ui.inspectorDescription.textContent=definition.description;
+      ui.inspectorState.textContent=stateLabel(p.state);ui.inspectorAge.textContent=formatWait(Math.max(0,simHours-p.createdAt));ui.inspectorCi.textContent=`${ciUsed}/${p.ciFailuresAssigned} failed`;ui.inspectorReturns.textContent=`${returnsUsed}/${p.feedbackReturnsAssigned}`;
+      const historyKey=`${p.id}:${p.history.length}`;if(ui.history.dataset.key===historyKey)return;ui.history.dataset.key=historyKey;
+      ui.history.replaceChildren(...p.history.map(event=>{const item=document.createElement("li"),time=document.createElement("time"),label=document.createElement("strong");time.textContent=formatSimTime(event.time);label.textContent=event.label;item.append(time,label);if(event.detail){const detail=document.createElement("span");detail.textContent=event.detail;item.append(detail);}return item;}));ui.history.scrollTop=ui.history.scrollHeight;
+    }
+    ui.inspectorClose.addEventListener("click",()=>selectPR(null));
+    canvas.addEventListener("pointerup",event=>{const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;let target=null,best=Infinity;for(const hit of passengerHitTargets){const distance=Math.hypot(x-hit.x,y-hit.y);if(distance<=hit.radius&&distance<best){target=hit;best=distance;}}if(target)selectPR(target.id);});
     function recordOccupancy(queueCount,platformCount){
       if(simHours-lastOccupancySample<.25)return;
       lastOccupancySample=simHours;occupancyHistory.push({time:simHours,queue:queueCount,platform:platformCount});
@@ -968,8 +1025,13 @@
       const platformDoorsOpen=trainState?.phase==="loading";
       platformScreenDoors(dm,platformDoorsOpen);
       guard(dm,guardPost.x,guardPost.y,guardPost.z,rework.length>0,now);
-      const speakers=[];
-      for(const p of visible){const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:["platform","boarding"].includes(p.state)?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework","boarding"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);if(pos){person(dm,pos.x,pos.y,pos.z,p,moving,anger,now);speakers.push({p,pos,anger});}}
+      const speakers=[];passengerHitTargets.length=0;ui.selectionMarker.hidden=true;
+      for(const p of visible){
+        const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:["platform","boarding"].includes(p.state)?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework","boarding"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);
+        if(!pos)continue;person(dm,pos.x,pos.y,pos.z,p,moving,anger,now);speakers.push({p,pos,anger});
+        const hit=project({x:pos.x,y:pos.y+.78,z:pos.z}),radius=Math.max(16,worldPx*.48);passengerHitTargets.push({id:p.id,x:hit.x,y:hit.y,radius});
+        if(p.id===selectedPrId){const marker=project(pos),width=Math.max(28,worldPx*.82);ui.selectionMarker.hidden=false;ui.selectionMarker.style.left=`${marker.x}px`;ui.selectionMarker.style.top=`${marker.y}px`;ui.selectionMarker.style.width=`${width}px`;ui.selectionMarker.style.height=`${width*.48}px`;}
+      }
       const pendingCopLine=trafficCopLine;
       speakers.push({p:trafficCopSpeaker,pos:guardPost,anger:0,forcedText:pendingCopLine,bubbleClass:"cop-bubble",onSpoken:()=>{if(trafficCopLine===pendingCopLine)trafficCopLine=null;}});
       updateSpeechBubbles(speakers,now);
@@ -979,7 +1041,7 @@
       train(dm,trainOffset,platformDoorsOpen);
       const dynamicArrays={p:new Float32Array(dm.p),c:new Float32Array(dm.c),lp:new Float32Array(dm.lp),lc:new Float32Array(dm.lc)};
       if(gl){gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);drawArrays(staticArrays.p,staticArrays.c,staticArrays.lp,staticArrays.lc,false);drawArrays(dynamicArrays.p,dynamicArrays.c,dynamicArrays.lp,dynamicArrays.lc,true);}else{drawSoftware([staticArrays,dynamicArrays]);}
-      placeDepartureBoard();placeMappedSigns();placeLabels();updateUI(queue,active,rework,platform);
+      placeDepartureBoard();placeMappedSigns();placeLabels();updateUI(queue,active,rework,platform);updateInspector();
     }
     window.addEventListener("resize",resize);
     requestAnimationFrame(tick);
