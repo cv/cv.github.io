@@ -752,9 +752,9 @@
     }
     function recordPRHistory(p,type,label,detail="",time=simHours){p.history.push({time,type,label,detail});}
     function cuePassengerSpeech(p,now,delay=350){p.nextSpeechAt=Math.min(p.nextSpeechAt,now+delay);}
-    for(let i=0;i<18;i+=1){ addPerson(simHours-random()*18);const p=people.at(-1);p.mergeAt=simHours-random()*10;p.platformEnteredAt=p.mergeAt;p.state="platform";recordPRHistory(p,"merged","Merged",`Waiting for release train`,p.mergeAt); }
-    for(let i=0;i<9;i+=1){ addPerson(simHours-random());const p=people.at(-1);p.ciReadyAt=simHours-random()*.4;p.waitingSince=simHours-random()*12;p.state="review_queue";recordPRHistory(p,"queued","Entered initial queue","Waiting for first review",p.waitingSince); }
-    for(let i=0;i<3;i+=1){ addPerson(simHours-random());const p=people.at(-1);p.reworkStartedAt=simHours-random()*.5;p.reworkDurationHours=reviewPassHours(p);p.waitingSince=simHours-random()*16;p.feedbackReturnsRemaining=Math.max(0,p.feedbackReturnsRemaining-1);p.state="rework";recordPRHistory(p,"changes","Changes requested","Rework in progress",p.reworkStartedAt); }
+    for(let i=0;i<18;i+=1){addPerson(simHours-random()*18);const p=people.at(-1);p.ciFailuresAssigned=p.ciFailuresRemaining=0;p.feedbackReturnsAssigned=p.feedbackReturnsRemaining=0;p.mergeAt=p.createdAt+random()*(simHours-p.createdAt);p.platformEnteredAt=p.mergeAt;p.state="platform";recordPRHistory(p,"merged","Merged","Waiting for release train",p.mergeAt);}
+    for(let i=0;i<9;i+=1){addPerson(simHours-random()*12);const p=people.at(-1);p.ciFailuresAssigned=p.ciFailuresRemaining=0;p.ciReadyAt=p.createdAt;p.waitingSince=p.createdAt+random()*(simHours-p.createdAt);p.state="review_queue";recordPRHistory(p,"queued","Entered initial queue","Waiting for first review",p.waitingSince);}
+    for(let i=0;i<3;i+=1){addPerson(simHours-random()*16);const p=people.at(-1);p.ciFailuresAssigned=p.ciFailuresRemaining=0;p.feedbackReturnsAssigned=Math.max(1,p.feedbackReturnsAssigned);p.feedbackReturnsRemaining=p.feedbackReturnsAssigned-1;p.reworkStartedAt=p.createdAt+random()*(simHours-p.createdAt);p.reworkDurationHours=reviewPassHours(p);p.waitingSince=p.createdAt;p.state="rework";recordPRHistory(p,"changes","Changes requested","Rework in progress",p.reworkStartedAt);}
 
     function syncOutputs(){
       outputs.inflow.value=`${controls.inflow.value} changes/day`;
