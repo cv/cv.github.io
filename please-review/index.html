@@ -87,6 +87,9 @@
     .speech-bubble { position: absolute; max-width: 154px; padding: 7px 10px 8px; color: #172b38; background: #fff; border: 3px solid #172b38; border-radius: 14px; box-shadow: 3px 3px 0 rgba(23, 43, 56, .22); font-size: clamp(11px, .9vw, 14px); font-weight: 800; line-height: 1; white-space: nowrap; transform-origin: var(--tail-x, 50%) 100%; animation: speech-pop .18s ease-out; }
     .speech-bubble::before { content: ""; position: absolute; left: var(--tail-x, 50%); bottom: -13px; width: 16px; height: 16px; background: #172b38; transform: translateX(-50%) rotate(45deg); }
     .speech-bubble::after { content: ""; position: absolute; left: var(--tail-x, 50%); bottom: -8px; width: 11px; height: 11px; background: #fff; transform: translateX(-50%) rotate(45deg); }
+    .cop-bubble { border-color: #1d3953; background: #e9fbff; color: #102b42; }
+    .cop-bubble::before { background: #1d3953; }
+    .cop-bubble::after { background: #e9fbff; }
     @keyframes speech-pop { from { opacity: 0; transform: translateY(5px) scale(.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @media (prefers-reduced-motion: reduce) { .speech-bubble { animation: none; } }
     #label-docs, #label-code, #label-image { display: none; }
@@ -633,8 +636,11 @@
     let simulationPaused=reducedMotion.matches;
     const trainArrivalDuration=()=>reducedMotion.matches?180:trainArrivalMs;
     let holdCapacity=24,platformCapacity=36;
-    let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity;
+    let lastOccupancySample=-Infinity,reviewsStoppedAt=null,lastSpeechAt=-Infinity,trafficCopLine=null;
     const expletives=["くそっ！","ふざけるな！","いい加減にしろ！","ありえない！","もう限界だ！","ちくしょう！","またかよ！","最悪だ！","なんでだよ！","冗談じゃない！","もう無理！","まじかよ！","うそだろ!?","勘弁してくれ！","やってられるか！"];
+    const trafficCopLines={approved:["LGTM!","承認！","マージへどうぞ！","出発進行！","ヨシ！"],changes:["差し戻し！","修正お願いします！","テスト追加！","再確認！","もう一周！"]};
+    const trafficCopSpeaker={id:"traffic-cop",nextSpeechAt:0,lastExpletive:""};
+    function cueTrafficCop(decision){const lines=trafficCopLines[decision];trafficCopLine=lines[Math.floor(random()*lines.length)];}
     function chooseRoute(){ const n=random(); return n<.10?"docs":n<.85?"code":"image"; }
     function randomIntInclusive(min,max){return Math.floor(random()*(max-min+1))+min;}
     function randomLongTailIntInclusive(min,max){return Math.floor(Math.pow(random(),5)*(max-min+1))+min;}
@@ -734,7 +740,7 @@
           if(simHours>=p.ciReadyAt){p.state="review_queue";p.queueOrigin=routes[p.route].b;p.queueVisualStartedAt=now;p.waitingSince=simHours;}
         }
         if(p.state==="review"&&!controls.stopReviews.checked&&simHours>=p.reviewStartedAt+p.reviewDurationHours){
-          if(p.feedbackReturnsRemaining>0){p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours();}else{p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
+          if(p.feedbackReturnsRemaining>0){cueTrafficCop("changes");p.feedbackReturnsRemaining-=1;p.state="rework";p.reworkStartedAt=simHours;p.reworkDurationHours=reviewPassHours();}else{cueTrafficCop("approved");p.state="platform";p.mergeAt=simHours;p.platformEnteredAt=simHours;p.waitingSince=null;p.platformOrigin=reviewCheckpoint;p.platformVisualStartedAt=now;}
         }
         if(p.state==="rework"&&simHours>=p.reworkStartedAt+p.reworkDurationHours){p.state="review_queue";p.queueOrigin=feedbackQueueEntrance;p.queueVisualStartedAt=now;p.ciReadyAt=simHours;p.reviewStartedAt=null;p.reworkStartedAt=null;}
       }
@@ -815,13 +821,14 @@
       }
       const maxBubbles=cssWidth<600?2:3;
       if(speechBubbles.size>=maxBubbles||now-lastSpeechAt<900)return;
-      const ready=candidates.filter(({p,anger})=>anger>=.72&&!speechBubbles.has(p.id)&&now>=p.nextSpeechAt).sort((a,b)=>b.anger-a.anger);
+      const forced=candidates.filter(({p,forcedText})=>forcedText&&!speechBubbles.has(p.id));
+      const ready=forced.length?forced:candidates.filter(({p,anger})=>anger>=.72&&!speechBubbles.has(p.id)&&now>=p.nextSpeechAt).sort((a,b)=>b.anger-a.anger);
       if(!ready.length)return;
-      const candidate=ready[Math.floor(random()*Math.min(3,ready.length))],el=document.createElement("div");
-      el.className="speech-bubble";el.lang="ja";el.textContent=bubbleText(candidate.p,candidate.anger);el.style.visibility="hidden";speechLayer.append(el);
+      const candidate=forced.length?ready[0]:ready[Math.floor(random()*Math.min(3,ready.length))],el=document.createElement("div");
+      el.className=`speech-bubble${candidate.bubbleClass?` ${candidate.bubbleClass}`:""}`;el.lang="ja";el.textContent=candidate.forcedText||bubbleText(candidate.p,candidate.anger);el.style.visibility="hidden";speechLayer.append(el);
       const entry={el,expiresAt:now+2200+random()*1500};
       candidate.p.nextSpeechAt=entry.expiresAt+5500+random()*11000/Math.max(.8,candidate.anger);
-      if(placeBubble(entry,project({x:candidate.pos.x,y:candidate.pos.y+1.76,z:candidate.pos.z}),occupied)){speechBubbles.set(candidate.p.id,entry);lastSpeechAt=now;}else{el.remove();candidate.p.nextSpeechAt=now+1800+random()*2200;}
+      if(placeBubble(entry,project({x:candidate.pos.x,y:candidate.pos.y+1.76,z:candidate.pos.z}),occupied)){speechBubbles.set(candidate.p.id,entry);lastSpeechAt=now;candidate.onSpoken?.();}else{el.remove();candidate.p.nextSpeechAt=now+1800+random()*2200;}
     }
     function drawSoftware(meshes){
       context2d.setTransform(pixelRatio,0,0,pixelRatio,0,0);
@@ -937,6 +944,8 @@
       guard(dm,guardPost.x,guardPost.y,guardPost.z,rework.length>0,now);
       const speakers=[];
       for(const p of visible){const pos=statePosition(p,indices.get(p.id)||0,now),crowdStress=["review_queue","review","rework"].includes(p.state)?holdStress:["platform","boarding"].includes(p.state)?platformStress:0,anger=angerLevel(p,crowdStress),moving=["ci","review","rework","boarding"].includes(p.state)||Boolean(p.queueVisualStartedAt||p.platformVisualStartedAt);if(pos){person(dm,pos.x,pos.y,pos.z,p,moving,anger,now);speakers.push({p,pos,anger});}}
+      const pendingCopLine=trafficCopLine;
+      speakers.push({p:trafficCopSpeaker,pos:guardPost,anger:0,forcedText:pendingCopLine,bubbleClass:"cop-bubble",onSpoken:()=>{if(trafficCopLine===pendingCopLine)trafficCopLine=null;}});
       updateSpeechBubbles(speakers,now);
       let trainOffset=0;
       if(trainState?.phase==="departing")trainOffset=Math.min(12,(now-trainState.started)/1000*5.6);
